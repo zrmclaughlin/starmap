@@ -1,6 +1,5 @@
 import numpy as np
 import Transformation
-import PropagateOrbit
 
 
 class OrbitalElements:
