@@ -54,7 +54,7 @@ def evaluate_j2_constants(reference_orbit, delta_state_0):
     return n, c, l, q, phi
 
 
-def j2_sedwick_propagator(delta_state_0, reference_orbit, time, step, normal):
+def j2_sedwick_propagator(delta_state_0, reference_orbit, time, step, normal, thresh_min, thresh_max):
     n, c, l, q, phi = evaluate_j2_constants(reference_orbit, delta_state_0)
     sc = sp.integrate.ode(lambda t, x: sedwick_eom(t, x, n, c, l, q, phi)).set_integrator('dopri5', atol=1e-12,
                                                                                           rtol=1e-12)
@@ -82,7 +82,7 @@ def j2_sedwick_propagator(delta_state_0, reference_orbit, time, step, normal):
             t[step_count] = sc.t
             result[step_count][:] = sc.y
             step_count += 1
-            if np.sqrt(sc.y[0] ** 2 + sc.y[1] ** 2 + sc.y[2] ** 2) < 30:
+            if (np.sqrt(sc.y[0] ** 2 + sc.y[1] ** 2 + sc.y[2] ** 2) > thresh_min) & (np.sqrt(sc.y[0] ** 2 + sc.y[1] ** 2 + sc.y[2] ** 2) < thresh_max):
                 success_count += 1
 
         return success_count
