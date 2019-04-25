@@ -54,7 +54,10 @@ def evaluate_j2_constants(reference_orbit, delta_state_0):
     return n, c, l, q, phi
 
 
-def j2_sedwick_propagator(delta_state_0, reference_orbit, time, step, normal, thresh_min, thresh_max):
+def j2_sedwick_propagator(delta_state_0, reference_orbit, time, step, type, thresh_min, thresh_max):
+    print("min:", thresh_min)
+    print("max: ", thresh_max)
+    print(delta_state_0)
     n, c, l, q, phi = evaluate_j2_constants(reference_orbit, delta_state_0)
     sc = sp.integrate.ode(lambda t, x: sedwick_eom(t, x, n, c, l, q, phi)).set_integrator('dopri5', atol=1e-12,
                                                                                           rtol=1e-12)
@@ -65,16 +68,16 @@ def j2_sedwick_propagator(delta_state_0, reference_orbit, time, step, normal, th
     result[0][:] = delta_state_0
     step_count = 1
 
-    if normal:
+    if type == 0:
         while sc.successful() and step_count < len(t):
             sc.integrate(sc.t + step)
             t[step_count] = sc.t
             result[step_count][:] = sc.y
             step_count += 1
 
-        return t, result
+        return [result[:, 0], result[:, 1], result[:, 2]]
 
-    else:  # if we are counting how many fit within a threshold rather than simply propagating
+    elif type == 1:  # if we are counting how many fit within a threshold rather than simply propagating
 
         success_count = 0
         while sc.successful() and step_count < len(t):
@@ -82,9 +85,33 @@ def j2_sedwick_propagator(delta_state_0, reference_orbit, time, step, normal, th
             t[step_count] = sc.t
             result[step_count][:] = sc.y
             step_count += 1
-            if (np.sqrt(sc.y[0] ** 2 + sc.y[1] ** 2 + sc.y[2] ** 2) > thresh_min) & (np.sqrt(sc.y[0] ** 2 + sc.y[1] ** 2 + sc.y[2] ** 2) < thresh_max):
+            if (np.sqrt(sc.y[0] ** 2 + sc.y[1] ** 2 + sc.y[2] ** 2) > thresh_min) & (
+                        np.sqrt(sc.y[0] ** 2 + sc.y[1] ** 2 + sc.y[2] ** 2) < thresh_max):
                 success_count += 1
 
         return success_count
+
+    elif type == 2:
+        result_in_range = [[], [], [], [], [], []]
+        t_in_range = []
+        result_out_of_range = [[], [], [], [], [], []]
+        t_out_of_range = []
+        while sc.successful() and step_count < len(t):
+            sc.integrate(sc.t + step)
+            t[step_count] = sc.t
+            # result[step_count][:] = sc.y
+            step_count += 1
+            if (np.sqrt(sc.y[0] ** 2 + sc.y[1] ** 2 + sc.y[2] ** 2) > thresh_max) | \
+                    (np.sqrt(sc.y[0] ** 2 + sc.y[1] ** 2 + sc.y[2] ** 2) < thresh_min):
+                for i in range(len(sc.y)):
+                    result_out_of_range[i].append(sc.y[i])
+                t_out_of_range.append(sc.t)
+            else:
+                for i in range(len(sc.y)):
+                    result_in_range[i].append(sc.y[i])
+                t_in_range.append(sc.t)
+
+        return t_in_range, [result_in_range[0], result_in_range[1], result_in_range[2]], \
+               t_out_of_range, [result_out_of_range[0], result_out_of_range[1], result_out_of_range[2]]
 
 # ############################################################################ #

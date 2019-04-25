@@ -1,10 +1,12 @@
 import sys
 from PyQt5.QtWidgets import QMainWindow, QApplication, QPushButton, QWidget, QAction, \
     QTabWidget, QVBoxLayout, QLineEdit, QHBoxLayout, QLabel, QGridLayout, QFrame, QComboBox
-from PyQt5.QtGui import QIcon
-from PyQt5.QtCore import pyqtSlot
+from PyQt5.QtGui import QIcon, QFont
+from PyQt5.QtCore import pyqtSlot, Qt
+from PyQt5 import QtGui
 import OrbitalElements
 import HeatMap
+import RelativeLocator
 import GraphWidgets
 
 
@@ -34,8 +36,16 @@ class StarMapGUI(QWidget):
 
         # Initialize tab screen
         self.tabs = QTabWidget()
-        self.ic_tab =  QWidget()  # initial conditions tab
+        # Initial Conditions Tab
+        self.ic_tab = QWidget()
+        # HeatMap Tab
         self.heatmap_tab = HeatMap.HeatMap()
+        self.select_trajectory_button = QPushButton("Select")
+        self.heatmap_tab.bottom_layout.addWidget(self.select_trajectory_button)
+        self.select_trajectory_button.clicked.connect(self.when_trajectory_button_clicked)
+        # Relative Location Tab
+        self.relloc_tab = RelativeLocator.RelativeLocator()
+        # Size tabs
         self.tabs.resize(600, 400)
 
         self.x_pos = QLineEdit("0.0")
@@ -59,35 +69,40 @@ class StarMapGUI(QWidget):
         self.maximum_distance_threshold = QLineEdit("30")
         self.minimum_distance_threshold = QLineEdit("0")
 
-        self.propagation_time = QLineEdit("20000")
+        self.propagation_time = QLineEdit("10000")
         self.values_record = QLineEdit("1000")
 
-        self.x_resolution = QLineEdit("3")
-        self.y_resolution = QLineEdit("3")
+        self.resolution = QLineEdit("3")
         self.heatmap_drop_down_menu_x_axis = QComboBox(self)
         self.heatmap_drop_down_menu_y_axis = QComboBox(self)
 
         self.heatmap_x_axis = 3
         self.heatmap_y_axis = 4
+        self.maximum_distance_threshold_value = None
+        self.minimum_distance_threshold_value = None
+        self.reference_orbit_value = None
 
         # Add tabs
         self.tabs.addTab(self.ic_tab, "Initial Conditions")
-        self.tabs.addTab(self.heatmap_tab, "XY Velocity HeatMap")
+        self.tabs.addTab(self.heatmap_tab, "Initial State HeatMap")
+        self.tabs.addTab(self.relloc_tab, "Relative Trajectory")
 
-        self.startButton = QPushButton("Get Simulation From Entered Conditions")
-        self.startButton.clicked.connect(self.when_startButton_clicked)
+        self.start_button = QPushButton("Get Simulation From Entered Conditions")
+        self.start_button.clicked.connect(self.when_start_button_clicked)
 
         # Add tabs to widget
         self.layout.addWidget(self.tabs)
         self.setLayout(self.layout)
 
         # Create textboxes
+        self.starmap_name_frame = QFrame()
         self.relmot_frame = QFrame()
         self.reforbit_frame = QFrame()
         self.resolution_frame = QFrame()
         self.timing_frame = QFrame()
         self.threshold_frame = QFrame()
 
+        self.set_ic_title_layout()
         self.set_ic_tab_relmot_layout()
         self.set_ic_tab_reforbit_layout()
         self.set_ic_resolution_layout()
@@ -95,14 +110,25 @@ class StarMapGUI(QWidget):
         self.set_ic_tab_threshold_layout()
 
         total_layout = QVBoxLayout()
+        total_layout.addWidget(self.starmap_name_frame)
         total_layout.addWidget(self.reforbit_frame)
         total_layout.addWidget(self.threshold_frame)
         total_layout.addWidget(self.resolution_frame)
         total_layout.addWidget(self.timing_frame)
         total_layout.addWidget(self.relmot_frame)
-        total_layout.addWidget(self.startButton)
+        total_layout.addWidget(self.start_button)
 
         self.ic_tab.setLayout(total_layout)
+
+    def set_ic_title_layout(self):
+        ic_layout = QHBoxLayout()
+        font_setting = QtGui.QFont()
+        font_setting.setPointSize(40)
+        gui_title = QLabel('<b> Welcome to STARMAP! </b>')
+        gui_title.setFont(font_setting)
+        gui_title.setAlignment(Qt.AlignCenter)
+        ic_layout.addWidget(gui_title)
+        self.starmap_name_frame.setLayout(ic_layout)
 
     def set_ic_tab_reforbit_layout(self):
         ic_layout = QHBoxLayout()
@@ -194,12 +220,7 @@ class StarMapGUI(QWidget):
         label_row = QLabel()
         label_row.setText("X-Axis resolution")
         ic_layout.addWidget(label_row)
-        ic_layout.addWidget(self.x_resolution)
-
-        label_row = QLabel()
-        label_row.setText("Y-Axis resolution")
-        ic_layout.addWidget(label_row)
-        ic_layout.addWidget(self.y_resolution)
+        ic_layout.addWidget(self.resolution)
 
         self.timing_frame.setLayout(ic_layout)
 
@@ -224,11 +245,12 @@ class StarMapGUI(QWidget):
         self.relmot_frame.setLayout(ic_layout)
 
     @pyqtSlot()
-    def when_startButton_clicked(self):
+    def when_start_button_clicked(self):
 
         reference_inclination = float(self.reference_inclination.text())
         reference_semimajor_axis = float(self.reference_semimajor_axis.text())
-        maximum_distance_threshold = float(self.maximum_distance_threshold.text())
+        self.maximum_distance_threshold_value = float(self.maximum_distance_threshold.text())
+        self.minimum_distance_threshold_value = float(self.minimum_distance_threshold.text())
 
         x_pos = float(self.x_pos.text())
         x_p_var = float(self.x_p_var.text())
@@ -244,25 +266,24 @@ class StarMapGUI(QWidget):
         z_v_var = float(self.z_v_var.text())
 
         mean_state = [x_pos, y_pos, z_pos, x_vel, y_vel, z_vel]
-        reference_orbit = OrbitalElements.OrbitalElements(reference_semimajor_axis, 0.0001,
-                                                          reference_inclination, 0.0, 0.0, 0.0, 3.986004415E14)
+        variances = [x_p_var, y_p_var, z_p_var, x_v_var, y_v_var, z_v_var]
+
+        self.reference_orbit = OrbitalElements.OrbitalElements(reference_semimajor_axis, 0.0001,
+                                                               reference_inclination, 0.0, 0.0, 0.0, 3.986004415E14)
 
         end_seconds = 20000
         recorded_times = 1000
 
-        print(self.heatmap_x_axis, self.heatmap_y_axis)
+        self.heatmap_tab.num_axis_points = int(self.resolution.text())
+        self.heatmap_tab.heat_map_xy(variances[self.heatmap_x_axis], variances[self.heatmap_y_axis], mean_state, self.reference_orbit, end_seconds,
+                                     recorded_times, self.heatmap_x_axis, self.heatmap_y_axis,
+                                     self.minimum_distance_threshold_value, self.maximum_distance_threshold_value)
 
-        # xy_v_heatmap = GraphWidgets.GraphViewHeatMap()
-        # HeatMap.heat_map_xy(xy_v_heatmap, x_v_var, y_v_var, mean_state, 30, 30, reference_orbit, end_seconds,
-        #                     recorded_times, self.heatmap_x_axis, self.heatmap_y_axis, 0, maximum_distance_threshold)
-        self.heatmap_tab.x_axis_points = int(self.x_resolution.text())
-        self.heatmap_tab.y_axis_points = int(self.y_resolution.text())
-        self.heatmap_tab.heat_map_xy(x_v_var, y_v_var, mean_state, reference_orbit, end_seconds,
-                            recorded_times, self.heatmap_x_axis, self.heatmap_y_axis, 0, maximum_distance_threshold)
-        # xy_v_heatmap_layout = QHBoxLayout()
-        # xy_v_heatmap_layout.addWidget(xy_v_heatmap)
-
-        # self.xy_v_heatmap_tab.setLayout(xy_v_heatmap_layout)
+    @pyqtSlot()
+    def when_trajectory_button_clicked(self):
+        self.relloc_tab.specify_trajectory(self.heatmap_tab.current_trajectory, self.heatmap_tab.end_seconds,
+                                           self.reference_orbit,
+                                           self.minimum_distance_threshold_value, self.maximum_distance_threshold_value)
 
 
 if __name__ == '__main__':
