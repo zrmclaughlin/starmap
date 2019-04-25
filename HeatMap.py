@@ -50,7 +50,6 @@ class HeatMap(QWidget):
     def choose_trajectory_to_propagate(self, text):
         self.current_trajectory[self.x_axis] = self.maximum_time_x_axis_values[text]
         self.current_trajectory[self.y_axis] = self.maximum_time_y_axis_values[text]
-        print(self.current_trajectory)
 
     def heat_map_xy(self, x_variance, y_variance, mean_state,
                     reference_orbit, end_seconds, recorded_times,
@@ -96,8 +95,12 @@ class HeatMap(QWidget):
             else:
                 self.y_property = " Cross-Track: "
 
-        x_values_list = np.linspace(-x_variance+mean_state[self.x_axis], x_variance+mean_state[self.x_axis], self.num_axis_points).tolist()
-        y_values_list = np.linspace(-y_variance+mean_state[self.y_axis], y_variance+mean_state[self.y_axis], self.num_axis_points).tolist()
+        x_values_list = np.linspace(-x_variance+mean_state[self.x_axis],
+                                    x_variance+mean_state[self.x_axis],
+                                    self.num_axis_points).tolist()
+        y_values_list = np.linspace(-y_variance+mean_state[self.y_axis],
+                                    y_variance+mean_state[self.y_axis],
+                                    self.num_axis_points).tolist()
 
         success_level = np.zeros([self.num_axis_points, self.num_axis_points])
         times = np.linspace(0.0, self.end_seconds, recorded_times)
@@ -118,14 +121,14 @@ class HeatMap(QWidget):
         map_x, map_y = np.array(np.meshgrid(x_values_list, y_values_list))
         max_x, max_y = np.where(np.asarray(success_level) == np.asarray(success_level).max())
 
-        print(max_x, max_y)
-
         axis_labels = [self.x_property + "Variance" + self.x_units,
                        self.y_property + " Variance" + self.y_units,
                        "% of Time within Constraint"]
         title = "Relative Motion Heatmap for " + str(self.end_seconds) + " seconds"
 
         self.heatmap_plot.update_graph(map_x, map_y, success_level, title, axis_labels)
+
+        self.valuable_trajectory_list = []
 
         for i in range(len(max_x)):
             self.maximum_time_x_axis_values.append(x_values_list[max_x[i]])

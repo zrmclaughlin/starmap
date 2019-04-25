@@ -99,7 +99,6 @@ def j2_sedwick_propagator(delta_state_0, reference_orbit, time, step, type, thre
         while sc.successful() and step_count < len(t):
             sc.integrate(sc.t + step)
             t[step_count] = sc.t
-            # result[step_count][:] = sc.y
             step_count += 1
             if (np.sqrt(sc.y[0] ** 2 + sc.y[1] ** 2 + sc.y[2] ** 2) > thresh_max) | \
                     (np.sqrt(sc.y[0] ** 2 + sc.y[1] ** 2 + sc.y[2] ** 2) < thresh_min):
@@ -113,5 +112,26 @@ def j2_sedwick_propagator(delta_state_0, reference_orbit, time, step, type, thre
 
         return t_in_range, [result_in_range[0], result_in_range[1], result_in_range[2]], \
                t_out_of_range, [result_out_of_range[0], result_out_of_range[1], result_out_of_range[2]]
+
+    elif type == 3:  # to get amounts of time for each pass
+        pass_lengths = []
+        pass_on = False
+        while sc.successful() and step_count < len(t):
+            sc.integrate(sc.t + step)
+            t[step_count] = sc.t
+            result[step_count][:] = sc.y
+            step_count += 1
+            if (np.sqrt(sc.y[0] ** 2 + sc.y[1] ** 2 + sc.y[2] ** 2) > thresh_min) & (
+                        np.sqrt(sc.y[0] ** 2 + sc.y[1] ** 2 + sc.y[2] ** 2) < thresh_max):
+                if not pass_on:
+                    pass_on = True
+                    pass_lengths.append(0)
+                else:
+                    # print(pass_lengths)
+                    pass_lengths[-1] += 1
+            else:
+                pass_on = False
+
+        return pass_lengths
 
 # ############################################################################ #

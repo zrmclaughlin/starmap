@@ -14,9 +14,38 @@ class RelativeLocator(QWidget):
     def __init__(self):
         super(QWidget, self).__init__()
         self.layout = QVBoxLayout(self)
-        self.plot_3d = GraphWidgets.GraphView3D()
-        self.layout.addWidget(self.plot_3d)
 
+        self.plot_regions = GraphWidgets.GraphView3D()
+        self.plot_trajectory = GraphWidgets.GraphView3D()
+        self.plot_pass_times = GraphWidgets.GraphView2D()
+
+        self.layout.addWidget(self.plot_regions)
+        self.layout.addWidget(self.plot_trajectory)
+        self.layout.addWidget(self.plot_pass_times)
+
+        self.plot_regions.hide()
+        self.plot_pass_times.hide()
+
+        self.bottom_panel = QFrame()
+        self.bottom_layout = QHBoxLayout()
+
+        self.plot_regions_button = QPushButton("plot regions")
+        self.plot_regions_button.clicked.connect(self.when_plot_regions_button_clicked)
+        self.plot_trajectory_button = QPushButton("plot trajectory")
+        self.plot_trajectory_button.clicked.connect(self.when_plot_trajectory_button_clicked)
+        self.plot_pass_times_button = QPushButton("plot pass_times")
+        self.plot_pass_times_button.clicked.connect(self.when_plot_pass_times_button_clicked)
+
+        self.bottom_layout.addWidget(self.plot_regions_button)
+        self.bottom_layout.addWidget(self.plot_trajectory_button)
+        self.bottom_layout.addWidget(self.plot_pass_times_button)
+
+        self.bottom_panel.setLayout(self.bottom_layout)
+
+        self.layout.addWidget(self.bottom_panel)
+
+        self.thresh_min = 0
+        self.thresh_max = 10
         self.state = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
         self.end_seconds = 20000
         self.resolution = self.end_seconds / 2
@@ -24,24 +53,60 @@ class RelativeLocator(QWidget):
         self.trajectory = [[], [], []]
         self.reference_orbit = None
 
+    def when_plot_regions_button_clicked(self):
+        self.plot_pass_times.hide()
+        self.plot_trajectory.hide()
+        self.plot_regions.show()
+
+    def when_plot_trajectory_button_clicked(self):
+        self.plot_regions.hide()
+        self.plot_pass_times.hide()
+        self.plot_trajectory.show()
+
+    def when_plot_pass_times_button_clicked(self):
+        self.plot_regions.hide()
+        self.plot_trajectory.hide()
+        self.plot_pass_times.show()
+
     def specify_trajectory(self, state, end_seconds, reference_orbit, thresh_min, thresh_max):
         self.reference_orbit = reference_orbit
         self.state = state
-        print(state)
+        self.thresh_min = thresh_min
+        self.thresh_max = thresh_max
         self.end_seconds = end_seconds
-        # self.state = [0.0, 0.0, 0.01, 0.001, 0.0, 0.01]
-        # trajectory = J2RelativeMotion.j2_sedwick_propagator(self.state, reference_orbit,
-        #                                                          self.times, self.times[1] - self.times[0],
-        #                                                          0, thresh_min, thresh_max)
-        t_in, data_in, t_out, data_out = J2RelativeMotion.j2_sedwick_propagator(self.state, reference_orbit,
-                                                                 self.times, self.times[1] - self.times[0],
-                                                                 2, thresh_min, thresh_max)
+
+        self.populate_region_graph()
+        self.populate_trajectory_graph()
+        self.populate_time_graph()
+
+    def populate_region_graph(self):
+        t_in, data_in, t_out, data_out = J2RelativeMotion.j2_sedwick_propagator(self.state, self.reference_orbit,
+                                                                                self.times,
+                                                                                self.times[1] - self.times[0],
+                                                                                2, self.thresh_min, self.thresh_max)
         data = [data_in, data_out]
-        self.plot_3d.update_scatter(data,
-                                  "Relative Motion for " + str(self.end_seconds) + " seconds",
-                                  ["Within Range", "Out of Range"],
+        self.plot_regions.update_scatter(data,
+                                    "Relative Motion for " + str(self.end_seconds) + " seconds | Trajectory: " + str(self.state),
+                                    ["Within Range", "Out of Range"],
+                                    ["Radial (m)", "In-Track (m)", "Cross-Track (m)"])
+
+    def populate_trajectory_graph(self):
+
+        trajectory = J2RelativeMotion.j2_sedwick_propagator(self.state, self.reference_orbit,
+                                                            self.times, self.times[1] - self.times[0],
+                                                            0, self.thresh_min, self.thresh_max)
+
+        self.plot_trajectory.update_graph([trajectory, ],
+                                  "Relative Motion for " + str(self.end_seconds) + " seconds | Trajectory: " + str(self.state),
                                   ["Radial (m)", "In-Track (m)", "Cross-Track (m)"])
-        # self.plot_3d.update_graph([trajectory, ],
-        #                           "Relative Motion for " + str(self.end_seconds) + " seconds",
-        #                           [""],
-        #                           ["Radial (m)", "In-Track (m)", "Cross-Track (m)"])
+
+    def populate_time_graph(self):
+
+        times = J2RelativeMotion.j2_sedwick_propagator(self.state, self.reference_orbit,
+                                                       self.times, self.times[1] - self.times[0],
+                                                       3, self.thresh_min, self.thresh_max)
+
+        self.plot_pass_times.update_graph([times, ],
+                                  "Opportunities for " + str(self.end_seconds) + " seconds | Trajectory: " + str(self.state),
+                                  [""],
+                                  ["Pass Number", "Amount of Time (s)"])

@@ -101,10 +101,12 @@ class StarMapGUI(QWidget):
         self.resolution_frame = QFrame()
         self.timing_frame = QFrame()
         self.threshold_frame = QFrame()
+        self.dropdown_frame = QFrame()
 
         self.set_ic_title_layout()
         self.set_ic_tab_relmot_layout()
         self.set_ic_tab_reforbit_layout()
+        self.set_ic_dropdown_layout()
         self.set_ic_resolution_layout()
         self.set_ic_timing_layout()
         self.set_ic_tab_threshold_layout()
@@ -114,6 +116,7 @@ class StarMapGUI(QWidget):
         total_layout.addWidget(self.reforbit_frame)
         total_layout.addWidget(self.threshold_frame)
         total_layout.addWidget(self.resolution_frame)
+        total_layout.addWidget(self.dropdown_frame)
         total_layout.addWidget(self.timing_frame)
         total_layout.addWidget(self.relmot_frame)
         total_layout.addWidget(self.start_button)
@@ -145,7 +148,6 @@ class StarMapGUI(QWidget):
 
         self.reforbit_frame.setLayout(ic_layout)
 
-
     def set_ic_tab_threshold_layout(self):
         ic_layout = QHBoxLayout()
 
@@ -173,16 +175,6 @@ class StarMapGUI(QWidget):
         label_row.setText("# Values to record")
         ic_layout.addWidget(label_row)
         ic_layout.addWidget(self.values_record)
-
-        item_list = ["X Velocity", "X Position", "Y Velocity", "Y Position", "Z Velocity", "Z Position"]
-        self.heatmap_drop_down_menu_x_axis.activated.connect(self.heatmap_choice_x)
-        self.heatmap_drop_down_menu_x_axis.addItems(item_list)
-        ic_layout.addWidget(self.heatmap_drop_down_menu_x_axis)
-
-        item_list = ["Y Velocity", "Y Position", "X Velocity", "X Position", "Z Velocity", "Z Position"]
-        self.heatmap_drop_down_menu_y_axis.activated.connect(self.heatmap_choice_y)
-        self.heatmap_drop_down_menu_y_axis.addItems(item_list)
-        ic_layout.addWidget(self.heatmap_drop_down_menu_y_axis)
 
         self.resolution_frame.setLayout(ic_layout)
 
@@ -214,11 +206,30 @@ class StarMapGUI(QWidget):
         elif text == 5:
             self.heatmap_y_axis = 2
 
+    def set_ic_dropdown_layout(self):
+        ic_layout = QHBoxLayout()
+
+        label_row = QLabel()
+        label_row.setText("HeatMap Axes")
+        ic_layout.addWidget(label_row)
+
+        item_list = ["X Velocity", "X Position", "Y Velocity", "Y Position", "Z Velocity", "Z Position"]
+        self.heatmap_drop_down_menu_x_axis.activated.connect(self.heatmap_choice_x)
+        self.heatmap_drop_down_menu_x_axis.addItems(item_list)
+        ic_layout.addWidget(self.heatmap_drop_down_menu_x_axis)
+
+        item_list = ["Y Velocity", "Y Position", "X Velocity", "X Position", "Z Velocity", "Z Position"]
+        self.heatmap_drop_down_menu_y_axis.activated.connect(self.heatmap_choice_y)
+        self.heatmap_drop_down_menu_y_axis.addItems(item_list)
+        ic_layout.addWidget(self.heatmap_drop_down_menu_y_axis)
+
+        self.dropdown_frame.setLayout(ic_layout)
+
     def set_ic_resolution_layout(self):
         ic_layout = QHBoxLayout()
 
         label_row = QLabel()
-        label_row.setText("X-Axis resolution")
+        label_row.setText("HeatMap Axis resolution")
         ic_layout.addWidget(label_row)
         ic_layout.addWidget(self.resolution)
 
@@ -271,16 +282,18 @@ class StarMapGUI(QWidget):
         self.reference_orbit = OrbitalElements.OrbitalElements(reference_semimajor_axis, 0.0001,
                                                                reference_inclination, 0.0, 0.0, 0.0, 3.986004415E14)
 
-        end_seconds = 20000
-        recorded_times = 1000
-
+        end_seconds = int(self.propagation_time.text())
+        recorded_times = int(self.values_record.text())
         self.heatmap_tab.num_axis_points = int(self.resolution.text())
-        self.heatmap_tab.heat_map_xy(variances[self.heatmap_x_axis], variances[self.heatmap_y_axis], mean_state, self.reference_orbit, end_seconds,
+
+        self.heatmap_tab.heat_map_xy(variances[self.heatmap_x_axis], variances[self.heatmap_y_axis], mean_state,
+                                     self.reference_orbit, end_seconds,
                                      recorded_times, self.heatmap_x_axis, self.heatmap_y_axis,
                                      self.minimum_distance_threshold_value, self.maximum_distance_threshold_value)
 
     @pyqtSlot()
     def when_trajectory_button_clicked(self):
+        print(self.heatmap_tab.current_trajectory)
         self.relloc_tab.specify_trajectory(self.heatmap_tab.current_trajectory, self.heatmap_tab.end_seconds,
                                            self.reference_orbit,
                                            self.minimum_distance_threshold_value, self.maximum_distance_threshold_value)
