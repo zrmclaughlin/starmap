@@ -32,18 +32,17 @@ class GraphView2D(QWidget):
         self.font.setPointSize(1)
         self.canvas.show()
 
-    def update_graph(self, data, title, labels, axis_labels):
+    def update_graph(self, data, title, axis_labels):
         self.axes.clear()
         colors = cycle(
             ["C0", "C1", "C2", "C3", "C4", "C5", "C6", "C7", "C8", "C9"])
         for item in range(len(data)):
-            self.axes.plot(data[item], color=next(colors), label=labels[item])
+            self.axes.plot(data[item], color=next(colors))
         self.axes.legend(frameon=True)
         self.axes.legend(loc="best")
         self.axes.set_title(title)
         self.axes.set_xlabel(axis_labels[0])
         self.axes.set_ylabel(axis_labels[1])
-        self.fig.tight_layout()
         self.axes.grid(linestyle='--')
         self.canvas.draw()
 
@@ -54,7 +53,6 @@ class GraphView3D(QWidget):
         super(QWidget, self).__init__(parent)
         self.dpi = 100
         self.fig = Figure((5.0, 3.0), dpi=self.dpi, facecolor=(1, 1, 1), edgecolor=(0, 0, 0))
-        self.fig.tight_layout()
         self.axes = self.fig.add_subplot(111, projection='3d')
         self.canvas = FigureCanvas(self.fig)
         self.canvas.setParent(self)
@@ -106,7 +104,6 @@ class GraphViewHeatMap(QWidget):
 
         self.dpi = 100
         self.fig = Figure((5.0, 3.0), dpi=self.dpi, facecolor=(1, 1, 1), edgecolor=(0, 0, 0))
-        self.fig.tight_layout()
         self.axes = self.fig.add_subplot(111, projection='3d')
         self.canvas = FigureCanvas(self.fig)
         self.canvas.setParent(self)

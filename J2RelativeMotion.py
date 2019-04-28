@@ -1,6 +1,7 @@
 import numpy as np
 import scipy as sp
 from scipy import integrate
+import TargetingUtils
 from mpmath import *
 
 r_e = 6378136.3
@@ -54,10 +55,7 @@ def evaluate_j2_constants(reference_orbit, delta_state_0):
     return n, c, l, q, phi
 
 
-def j2_sedwick_propagator(delta_state_0, reference_orbit, time, step, type, thresh_min, thresh_max):
-    print("min:", thresh_min)
-    print("max: ", thresh_max)
-    print(delta_state_0)
+def j2_sedwick_propagator(delta_state_0, reference_orbit, time, step, type, thresh_min, thresh_max, target_status):
     n, c, l, q, phi = evaluate_j2_constants(reference_orbit, delta_state_0)
     sc = sp.integrate.ode(lambda t, x: sedwick_eom(t, x, n, c, l, q, phi)).set_integrator('dopri5', atol=1e-12,
                                                                                           rtol=1e-12)
@@ -127,11 +125,45 @@ def j2_sedwick_propagator(delta_state_0, reference_orbit, time, step, type, thre
                     pass_on = True
                     pass_lengths.append(0)
                 else:
-                    # print(pass_lengths)
                     pass_lengths[-1] += 1
             else:
                 pass_on = False
 
         return pass_lengths
+
+    elif type == 4:
+
+        results = [[], [], [], [], [], []]
+        t = []
+
+        dv = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+        nominal_formation = [0.0, 5.0, 0.0, 0, 0, 0]  # *1/np.linalg.norm([0.0, 5.0, 0.0, 0, 0, 0])
+        # for i in range(len(nominal_formation)):
+        #     nominal_formation[i] = 20*nominal_formation[i]
+
+        stable = True
+        current_time = 0
+
+        while sc.successful() and stable and current_time < len(time):
+            sc.integrate(sc.t + step)
+            current_time = current_time + step
+            t.append(current_time)
+            results[0].append(sc.y[0])
+            results[1].append(sc.y[1])
+            results[2].append(sc.y[2])
+            results[3].append(sc.y[3])
+            results[4].append(sc.y[4])
+            results[5].append(sc.y[5])
+            if np.sqrt((sc.y[0]**2 + sc.y[1]**2 + sc.y[2]**2)) > thresh_max:  # do targeting!
+                S_T_vv_inv = np.linalg.inv(TargetingUtils.get_S_T_vv(sc.y))
+                S_T_rv_inv = np.linalg.inv(TargetingUtils.get_S_T_rv(sc.y))
+                # determine a maneuver to put the spacecraft back on track :)
+                dv1 = np.matmul(S_T_rv_inv, np.asarray([nominal_formation[0], nominal_formation[1], nominal_formation[2]]))
+                dv2 = np.matmul(S_T_vv_inv, np.asarray([nominal_formation[3], nominal_formation[4], nominal_formation[5]]))
+                dv = [0, 0, 0, dv1[0, 0], dv1[0, 1], dv1[0, 2]]
+                target_status = False
+                stable = False
+
+        return dv, results, current_time, target_status
 
 # ############################################################################ #

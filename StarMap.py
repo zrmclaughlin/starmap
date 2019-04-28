@@ -8,6 +8,8 @@ import OrbitalElements
 import HeatMap
 import RelativeLocator
 import GraphWidgets
+import random
+import Targeter
 
 
 class App(QMainWindow):
@@ -40,9 +42,15 @@ class StarMapGUI(QWidget):
         self.ic_tab = QWidget()
         # HeatMap Tab
         self.heatmap_tab = HeatMap.HeatMap()
-        self.select_trajectory_button = QPushButton("Select")
-        self.heatmap_tab.bottom_layout.addWidget(self.select_trajectory_button)
-        self.select_trajectory_button.clicked.connect(self.when_trajectory_button_clicked)
+        self.select_heatmap_trajectory_button = QPushButton("select")
+        self.heatmap_tab.bottom_layout.addWidget(self.select_heatmap_trajectory_button)
+        self.select_heatmap_trajectory_button.clicked.connect(self.when_heatmap_button_clicked)
+
+        self.target_tab = Targeter.Targeter()
+        self.select_targeted_trajectory_button = QPushButton("select")
+        self.target_tab.bottom_layout.addWidget(self.select_targeted_trajectory_button)
+        self.select_targeted_trajectory_button.clicked.connect(self.when_targeted_trajectory_button_clicked)
+
         # Relative Location Tab
         self.relloc_tab = RelativeLocator.RelativeLocator()
         # Size tabs
@@ -80,15 +88,19 @@ class StarMapGUI(QWidget):
         self.heatmap_y_axis = 4
         self.maximum_distance_threshold_value = None
         self.minimum_distance_threshold_value = None
-        self.reference_orbit_value = None
+        self.reference_orbit = None
 
         # Add tabs
         self.tabs.addTab(self.ic_tab, "Initial Conditions")
         self.tabs.addTab(self.heatmap_tab, "Initial State HeatMap")
+        self.tabs.addTab(self.target_tab, "Targeted Trajectory")
         self.tabs.addTab(self.relloc_tab, "Relative Trajectory")
 
-        self.start_button = QPushButton("Get Simulation From Entered Conditions")
-        self.start_button.clicked.connect(self.when_start_button_clicked)
+        self.start_button_heatmap = QPushButton("Get HeatMap From Entered Conditions")
+        self.start_button_heatmap.clicked.connect(self.when_start_button_heatmap_clicked)
+
+        self.select_relloc_trajectory_button = QPushButton("Get Trajectory From Entered Conditions")
+        self.select_relloc_trajectory_button.clicked.connect(self.when_start_relloc_button_clicked)
 
         # Add tabs to widget
         self.layout.addWidget(self.tabs)
@@ -119,15 +131,23 @@ class StarMapGUI(QWidget):
         total_layout.addWidget(self.dropdown_frame)
         total_layout.addWidget(self.timing_frame)
         total_layout.addWidget(self.relmot_frame)
-        total_layout.addWidget(self.start_button)
+        total_layout.addWidget(self.start_button_heatmap)
+        total_layout.addWidget(self.select_relloc_trajectory_button)
 
         self.ic_tab.setLayout(total_layout)
+
+    def get_app_title_message(self):
+        title_string = ['<b> Welcome to STARMAP! </b>', '<b> im gonna FREAK IT </b>', '<b> first... i park my car </b>', '<b> im going FERAL </b>',
+                        '<b> me when I get you </b>', '<b> ;) </b>', '<b> im feeling the effect... </b>', '<b> the sensation </b>',
+                        '<b> what if we kissed in walmart and we were both heterosexual :O </b>', '<b> hi im evil </b>',
+                        '<b> slug academy </b>', '<b> going buffalo milk </b>', '<b> the anti effect </b>',]
+        return random.choice(title_string)
 
     def set_ic_title_layout(self):
         ic_layout = QHBoxLayout()
         font_setting = QtGui.QFont()
         font_setting.setPointSize(40)
-        gui_title = QLabel('<b> Welcome to STARMAP! </b>')
+        gui_title = QLabel(self.get_app_title_message())
         gui_title.setFont(font_setting)
         gui_title.setAlignment(Qt.AlignCenter)
         ic_layout.addWidget(gui_title)
@@ -255,8 +275,7 @@ class StarMapGUI(QWidget):
 
         self.relmot_frame.setLayout(ic_layout)
 
-    @pyqtSlot()
-    def when_start_button_clicked(self):
+    def get_initial_info(self):
 
         reference_inclination = float(self.reference_inclination.text())
         reference_semimajor_axis = float(self.reference_semimajor_axis.text())
@@ -280,23 +299,43 @@ class StarMapGUI(QWidget):
         variances = [x_p_var, y_p_var, z_p_var, x_v_var, y_v_var, z_v_var]
 
         self.reference_orbit = OrbitalElements.OrbitalElements(reference_semimajor_axis, 0.0001,
-                                                               reference_inclination, 0.0, 0.0, 0.0, 3.986004415E14)
+                                                               reference_inclination, 0.0, 0.0, 0.0,
+                                                               3.986004415E14)
 
         end_seconds = int(self.propagation_time.text())
         recorded_times = int(self.values_record.text())
         self.heatmap_tab.num_axis_points = int(self.resolution.text())
+        return mean_state, variances, end_seconds, recorded_times
 
+    @pyqtSlot()
+    def when_start_relloc_button_clicked(self):
+        mean_state, variances, end_seconds, recorded_times = self.get_initial_info()
+        self.relloc_tab.specify_trajectory(mean_state, end_seconds, self.reference_orbit,
+                                                        self.minimum_distance_threshold_value,
+                                                        self.maximum_distance_threshold_value)
+
+    @pyqtSlot()
+    def when_start_button_heatmap_clicked(self):
+        mean_state, variances, end_seconds, recorded_times = self.get_initial_info()
         self.heatmap_tab.heat_map_xy(variances[self.heatmap_x_axis], variances[self.heatmap_y_axis], mean_state,
                                      self.reference_orbit, end_seconds,
                                      recorded_times, self.heatmap_x_axis, self.heatmap_y_axis,
                                      self.minimum_distance_threshold_value, self.maximum_distance_threshold_value)
 
     @pyqtSlot()
-    def when_trajectory_button_clicked(self):
-        print(self.heatmap_tab.current_trajectory)
-        self.relloc_tab.specify_trajectory(self.heatmap_tab.current_trajectory, self.heatmap_tab.end_seconds,
-                                           self.reference_orbit,
-                                           self.minimum_distance_threshold_value, self.maximum_distance_threshold_value)
+    def when_heatmap_button_clicked(self):
+        self.relloc_tab.specify_trajectory(self.heatmap_tab.current_trajectory,
+                                           self.heatmap_tab.end_seconds, self.reference_orbit,
+                                           self.minimum_distance_threshold_value,
+                                           self.maximum_distance_threshold_value)
+
+    @pyqtSlot()
+    def when_targeted_trajectory_button_clicked(self):
+        self.get_initial_info()
+        self.relloc_tab.specify_trajectory(self.target_tab.state,
+                                           self.target_tab.end_seconds, self.reference_orbit,
+                                           self.minimum_distance_threshold_value,
+                                           self.maximum_distance_threshold_value)
 
 
 if __name__ == '__main__':
