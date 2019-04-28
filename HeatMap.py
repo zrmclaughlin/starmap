@@ -115,7 +115,7 @@ class HeatMap(QWidget):
                 mean_state[self.y_axis] = y_values_list[j]
 
                 success_level[i][j] = J2RelativeMotion.j2_sedwick_propagator(mean_state, reference_orbit, times, step,
-                                                                             1, threshold_min, threshold_max)\
+                                                                             1, threshold_min, threshold_max, False)\
                                                                              / recorded_times * 100
 
         map_x, map_y = np.array(np.meshgrid(x_values_list, y_values_list))

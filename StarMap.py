@@ -140,7 +140,10 @@ class StarMapGUI(QWidget):
         title_string = ['<b> Welcome to STARMAP! </b>', '<b> im gonna FREAK IT </b>', '<b> first... i park my car </b>', '<b> im going FERAL </b>',
                         '<b> me when I get you </b>', '<b> ;) </b>', '<b> im feeling the effect... </b>', '<b> the sensation </b>',
                         '<b> what if we kissed in walmart and we were both heterosexual :O </b>', '<b> hi im evil </b>',
-                        '<b> slug academy </b>', '<b> going buffalo milk </b>', '<b> the anti effect </b>',]
+                        '<b> slug academy </b>', '<b> going buffalo milk </b>', '<b> the anti effect </b>',
+                        '<b> Time to plot this plant... </b>', '<b> Understood. </b>',
+                        '<b> you DONT have the super monkey ball controller :/ </b>',
+                        '<b> you DONT have the apple tv remote </b>']
         return random.choice(title_string)
 
     def set_ic_title_layout(self):
