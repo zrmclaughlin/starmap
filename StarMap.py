@@ -102,6 +102,9 @@ class StarMapGUI(QWidget):
         self.select_relloc_trajectory_button = QPushButton("Get Trajectory From Entered Conditions")
         self.select_relloc_trajectory_button.clicked.connect(self.when_start_relloc_button_clicked)
 
+        self.select_target_trajectory_button = QPushButton("Target a Trajectory From Entered Conditions")
+        self.select_target_trajectory_button.clicked.connect(self.when_start_button_target_clicked)
+
         # Add tabs to widget
         self.layout.addWidget(self.tabs)
         self.setLayout(self.layout)
@@ -117,11 +120,8 @@ class StarMapGUI(QWidget):
 
         self.set_ic_title_layout()
         self.set_ic_tab_relmot_layout()
-        self.set_ic_tab_reforbit_layout()
+        self.set_ic_tab_orbit_threshold_timing()
         self.set_ic_dropdown_layout()
-        self.set_ic_resolution_layout()
-        self.set_ic_timing_layout()
-        self.set_ic_tab_threshold_layout()
 
         total_layout = QVBoxLayout()
         total_layout.addWidget(self.starmap_name_frame)
@@ -133,15 +133,17 @@ class StarMapGUI(QWidget):
         total_layout.addWidget(self.relmot_frame)
         total_layout.addWidget(self.start_button_heatmap)
         total_layout.addWidget(self.select_relloc_trajectory_button)
+        total_layout.addWidget(self.select_target_trajectory_button)
 
         self.ic_tab.setLayout(total_layout)
 
     def get_app_title_message(self):
-        title_string = ['<b> Welcome to STARMAP! </b>', '<b> im gonna FREAK IT </b>', '<b> first... i park my car </b>', '<b> im going FERAL </b>',
-                        '<b> me when I get you </b>', '<b> ;) </b>', '<b> im feeling the effect... </b>', '<b> the sensation </b>',
+        title_string = ['<b> Welcome to STARMAP! </b>', '<b> im gonna FREAK IT </b>', '<b> first... i park my car </b>',
+                        '<b> im going FERAL </b>', '<b> me when I get you </b>', '<b> ;) </b>',
+                        '<b> im feeling the effect... </b>', '<b> the sensation </b>',
                         '<b> what if we kissed in walmart and we were both heterosexual :O </b>', '<b> hi im evil </b>',
-                        '<b> slug academy </b>', '<b> going buffalo milk </b>', '<b> the anti effect </b>',
-                        '<b> Time to plot this plant... </b>', '<b> Understood. </b>',
+                        '<b> slug academy </b>', '<b> going :airplane_emoji: buffalo milk </b>',
+                        '<b> the anti effect </b>', '<b> Time to plot this plant... </b>', '<b> Understood. </b>',
                         '<b> you DONT have the super monkey ball controller :/ </b>',
                         '<b> you DONT have the apple tv remote </b>']
         return random.choice(title_string)
@@ -156,50 +158,46 @@ class StarMapGUI(QWidget):
         ic_layout.addWidget(gui_title)
         self.starmap_name_frame.setLayout(ic_layout)
 
-    def set_ic_tab_reforbit_layout(self):
-        ic_layout = QHBoxLayout()
+    def set_ic_tab_orbit_threshold_timing(self):
+        ic_layout = QGridLayout()
 
         label_row = QLabel()
         label_row.setText("Ref. inclination")
-        ic_layout.addWidget(label_row)
-        ic_layout.addWidget(self.reference_inclination)
+        ic_layout.addWidget(label_row, 0, 0)
+        ic_layout.addWidget(self.reference_inclination, 0, 1)
+        ic_layout.addWidget(QLabel("Units"), 0, 1)
 
         label_row = QLabel()
         label_row.setText("Ref. semi-major axis")
-        ic_layout.addWidget(label_row)
-        ic_layout.addWidget(self.reference_semimajor_axis)
-
-        self.reforbit_frame.setLayout(ic_layout)
-
-    def set_ic_tab_threshold_layout(self):
-        ic_layout = QHBoxLayout()
+        ic_layout.addWidget(label_row, 0, 2)
+        ic_layout.addWidget(self.reference_semimajor_axis, 0, 3)
+        ic_layout.addWidget(QLabel("Units"), 0, 3)
 
         label_row = QLabel()
         label_row.setText("Max. position threshold")
-        ic_layout.addWidget(label_row)
-        ic_layout.addWidget(self.maximum_distance_threshold)
+        ic_layout.addWidget(label_row, 1, 0)
+        ic_layout.addWidget(self.maximum_distance_threshold, 1, 1)
+        ic_layout.addWidget(QLabel("Units"), 1, 1)
 
         label_row = QLabel()
         label_row.setText("Min. position threshold")
-        ic_layout.addWidget(label_row)
-        ic_layout.addWidget(self.minimum_distance_threshold)
-
-        self.threshold_frame.setLayout(ic_layout)
-
-    def set_ic_timing_layout(self):
-        ic_layout = QHBoxLayout()
+        ic_layout.addWidget(label_row, 1, 2)
+        ic_layout.addWidget(self.minimum_distance_threshold, 1, 3)
+        ic_layout.addWidget(QLabel("Units"), 1, 3)
 
         label_row = QLabel()
         label_row.setText("Time for propagation")
-        ic_layout.addWidget(label_row)
-        ic_layout.addWidget(self.propagation_time)
+        ic_layout.addWidget(label_row, 2, 0)
+        ic_layout.addWidget(self.propagation_time, 2, 1)
+        ic_layout.addWidget(QLabel("Units"), 2, 1)
 
         label_row = QLabel()
         label_row.setText("# Values to record")
-        ic_layout.addWidget(label_row)
-        ic_layout.addWidget(self.values_record)
+        ic_layout.addWidget(label_row, 2, 2)
+        ic_layout.addWidget(self.values_record, 2, 3)
+        ic_layout.addWidget(QLabel("Units"), 2, 3)
 
-        self.resolution_frame.setLayout(ic_layout)
+        self.reforbit_frame.setLayout(ic_layout)
 
     def heatmap_choice_x(self, text):
         if text == 0:
@@ -326,6 +324,12 @@ class StarMapGUI(QWidget):
                                      self.minimum_distance_threshold_value, self.maximum_distance_threshold_value)
 
     @pyqtSlot()
+    def when_start_button_target_clicked(self):
+        mean_state, variances, end_seconds, recorded_times = self.get_initial_info()
+        self.target_tab.specify_trajectory(mean_state, end_seconds, self.reference_orbit,
+                                           self.minimum_distance_threshold_value, self.maximum_distance_threshold_value)
+
+    @pyqtSlot()
     def when_heatmap_button_clicked(self):
         self.relloc_tab.specify_trajectory(self.heatmap_tab.current_trajectory,
                                            self.heatmap_tab.end_seconds, self.reference_orbit,
@@ -335,7 +339,7 @@ class StarMapGUI(QWidget):
     @pyqtSlot()
     def when_targeted_trajectory_button_clicked(self):
         self.get_initial_info()
-        self.relloc_tab.specify_trajectory(self.target_tab.state,
+        self.relloc_tab.specify_trajectory(self.target_tab.targeted_state,
                                            self.target_tab.end_seconds, self.reference_orbit,
                                            self.minimum_distance_threshold_value,
                                            self.maximum_distance_threshold_value)

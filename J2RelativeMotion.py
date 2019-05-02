@@ -8,6 +8,59 @@ r_e = 6378136.3
 j2 = 1.082E-3
 mu = 3.986004415E14
 
+# ######################## TARGETING SEDWICK J2 REOM ######################### #
+
+def sedwick_eom_st(t, delta_state, A, n, c, l, q, phi):
+    state_size = len(delta_state)  # 1: implies x ODEs
+    dx_dt = np.zeros((1, state_size))
+
+    S_T = TargetingUtils.recompose(delta_state)
+    S_T_dt = np.matmul(A, S_T).tolist()
+
+    dx_dt[0][0] = delta_state[3]
+    dx_dt[0][1] = delta_state[4]
+    dx_dt[0][2] = delta_state[5]
+    dx_dt[0][3] = 2 * n * c * delta_state[4] + (5 * c ** 2 - 2) * n ** 2 * delta_state[0]
+    dx_dt[0][4] = -2 * n * c * delta_state[3]
+    dx_dt[0][5] = -q ** 2 * delta_state[2] + 2 * l * q * np.cos(q * t + phi)
+
+    dx_dt[0][6] = S_T_dt[0][0]
+    dx_dt[0][7] = S_T_dt[0][1]
+    dx_dt[0][8] = S_T_dt[0][2]
+    dx_dt[0][9] = S_T_dt[0][3]
+    dx_dt[0][10] = S_T_dt[0][4]
+    dx_dt[0][11] = S_T_dt[0][5]
+    dx_dt[0][12] = S_T_dt[1][0]
+    dx_dt[0][13] = S_T_dt[1][1]
+    dx_dt[0][14] = S_T_dt[1][2]
+    dx_dt[0][15] = S_T_dt[1][3]
+    dx_dt[0][16] = S_T_dt[1][4]
+    dx_dt[0][17] = S_T_dt[1][5]
+    dx_dt[0][18] = S_T_dt[2][0]
+    dx_dt[0][19] = S_T_dt[2][1]
+    dx_dt[0][20] = S_T_dt[2][2]
+    dx_dt[0][21] = S_T_dt[2][3]
+    dx_dt[0][22] = S_T_dt[2][4]
+    dx_dt[0][23] = S_T_dt[2][5]
+    dx_dt[0][24] = S_T_dt[3][0]
+    dx_dt[0][25] = S_T_dt[3][1]
+    dx_dt[0][26] = S_T_dt[3][2]
+    dx_dt[0][27] = S_T_dt[3][3]
+    dx_dt[0][28] = S_T_dt[3][4]
+    dx_dt[0][29] = S_T_dt[3][5]
+    dx_dt[0][30] = S_T_dt[4][0]
+    dx_dt[0][31] = S_T_dt[4][1]
+    dx_dt[0][32] = S_T_dt[4][2]
+    dx_dt[0][33] = S_T_dt[4][3]
+    dx_dt[0][34] = S_T_dt[4][4]
+    dx_dt[0][35] = S_T_dt[4][5]
+    dx_dt[0][36] = S_T_dt[5][0]
+    dx_dt[0][37] = S_T_dt[5][1]
+    dx_dt[0][38] = S_T_dt[5][2]
+    dx_dt[0][39] = S_T_dt[5][3]
+    dx_dt[0][40] = S_T_dt[5][4]
+    dx_dt[0][41] = S_T_dt[5][5]
+    return dx_dt
 
 # ############################## SEDWICK J2 REOM ############################## #
 
@@ -131,39 +184,57 @@ def j2_sedwick_propagator(delta_state_0, reference_orbit, time, step, type, thre
 
         return pass_lengths
 
-    elif type == 4:
+def j2_sedwick_targeter(delta_state_0, reference_orbit, time, step, end_seconds, thresh_min, thresh_max, target_status):
 
-        results = [[], [], [], [], [], []]
-        t = []
+    n, c, l, q, phi = evaluate_j2_constants(reference_orbit, delta_state_0)
 
-        dv = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-        nominal_formation = [0.0, 5.0, 0.0, 0, 0, 0]  # *1/np.linalg.norm([0.0, 5.0, 0.0, 0, 0, 0])
-        # for i in range(len(nominal_formation)):
-        #     nominal_formation[i] = 20*nominal_formation[i]
+    # Jacobian matrix
+    A = np.zeros(shape=(6, 6))
+    A[0][3] = 1
+    A[1][4] = 1
+    A[2][5] = 1
+    A[3][0] = (5 * c ** 2 - 2) * n ** 2  # 24th element
+    A[3][4] = 2 * n * c  # 28th element
+    A[4][3] = -2 * n * c  # 33rd element
+    A[5][2] = -q ** 2  # 38th element
 
-        stable = True
-        current_time = 0
+    sc = sp.integrate.ode(lambda t, x: sedwick_eom_st(t, x, A, n, c, l, q, phi)).set_integrator('dopri5', atol=1e-12,
+                                                                                          rtol=1e-12)
+    sc.set_initial_value(delta_state_0, time[0])
 
-        while sc.successful() and stable and current_time < len(time):
-            sc.integrate(sc.t + step)
-            current_time = current_time + step
-            t.append(current_time)
-            results[0].append(sc.y[0])
-            results[1].append(sc.y[1])
-            results[2].append(sc.y[2])
-            results[3].append(sc.y[3])
-            results[4].append(sc.y[4])
-            results[5].append(sc.y[5])
-            if np.sqrt((sc.y[0]**2 + sc.y[1]**2 + sc.y[2]**2)) > thresh_max:  # do targeting!
-                S_T_vv_inv = np.linalg.inv(TargetingUtils.get_S_T_vv(sc.y))
-                S_T_rv_inv = np.linalg.inv(TargetingUtils.get_S_T_rv(sc.y))
-                # determine a maneuver to put the spacecraft back on track :)
-                dv1 = np.matmul(S_T_rv_inv, np.asarray([nominal_formation[0], nominal_formation[1], nominal_formation[2]]))
-                dv2 = np.matmul(S_T_vv_inv, np.asarray([nominal_formation[3], nominal_formation[4], nominal_formation[5]]))
-                dv = [0, 0, 0, dv1[0, 0], dv1[0, 1], dv1[0, 2]]
-                target_status = False
-                stable = False
+    results = [[], [], [], [], [], []]
+    t = []
 
-        return dv, results, current_time, target_status
+    dv = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+    # nominal_formation = [0.0, 5.0, 0.0, 0, 0, 0]
+    nominal_formation = [.1, 1, .1, 0, 0, 0] * 1 / np.linalg.norm([1, 1, 0, 0, 0, 0])
+    for i in range(len(nominal_formation)):
+        nominal_formation[i] = 20 * nominal_formation[i]
+
+    stable = True
+    current_time = 0
+    target_status = True
+
+    while sc.successful() and stable and current_time < end_seconds:
+        sc.integrate(sc.t + step)
+        current_time = current_time + step
+        t.append(current_time)
+        results[0].append(sc.y[0])
+        results[1].append(sc.y[1])
+        results[2].append(sc.y[2])
+        results[3].append(sc.y[3])
+        results[4].append(sc.y[4])
+        results[5].append(sc.y[5])
+        if np.sqrt((sc.y[0]**2 + sc.y[1]**2 + sc.y[2]**2)) > thresh_max:  # do targeting!
+            S_T_vv_inv = np.linalg.inv(TargetingUtils.get_S_T_vv(sc.y))
+            S_T_rv_inv = np.linalg.inv(TargetingUtils.get_S_T_rv(sc.y))
+            # determine a maneuver to put the spacecraft back on track :)
+            dv1 = np.matmul(S_T_rv_inv, np.asarray([nominal_formation[0], nominal_formation[1], nominal_formation[2]]))
+            dv2 = np.matmul(S_T_vv_inv, np.asarray([nominal_formation[3], nominal_formation[4], nominal_formation[5]]))
+            dv = [0, 0, 0, dv1[0, 0], dv1[0, 1], dv1[0, 2]]
+            target_status = False
+            stable = False
+
+    return dv, results, current_time, target_status
 
 # ############################################################################ #

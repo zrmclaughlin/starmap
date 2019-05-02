@@ -7,6 +7,7 @@ from PyQt5.QtWidgets import QMainWindow, QApplication, QPushButton, QWidget, QAc
     QTableWidget, QTableWidgetItem
 from PyQt5.QtCore import pyqtSlot, Qt
 from PyQt5 import QtCore, QtGui, QtWidgets
+import TargetingUtils
 
 
 # ############################## TARGETED TRAJECTORY GENERATOR ############################## #
@@ -27,11 +28,14 @@ class Targeter(QWidget):
 
         self.state = [0.0, 0.0, 0.1, 0.0, 0.0, 0.1]
         self.end_seconds = 10
-        self.resolution = self.end_seconds / 2
+        self.resolution = self.end_seconds
         self.times = np.linspace(0.0, self.end_seconds, int(self.resolution))
         self.reference_orbit = None
         self.thresh_min = 0
         self.thresh_max = 10
+
+        self.targeted_state = []
+        self.state_transition = []
 
     def specify_trajectory(self, state, end_seconds, reference_orbit, thresh_min, thresh_max):
 
@@ -40,24 +44,35 @@ class Targeter(QWidget):
         self.thresh_min = thresh_min
         self.thresh_max = thresh_max
         self.end_seconds = end_seconds
+        self.resolution = self.end_seconds
         self.times = np.linspace(0.0, self.end_seconds, int(self.resolution))
 
         self.populate_targeted_trajectory()
 
     def populate_targeted_trajectory(self):
 
+        targeted_state = [  # Initial relative state
+            self.state[0], self.state[1], self.state[2], self.state[3], self.state[4], self.state[5],
+            # State Transition Matrix (I, 6x6)
+            # .2, 0, 0.1, .1, 0, .5,
+            1.0, 0, 0, 0, 0, 0,
+            0, 1.0, 0, 0, 0, 0,
+            0, 0, 1.0, 0, 0, 0,
+            0, 0, 0, 1.0, 0, 0,
+            0, 0, 0, 0, 1.0, 0,
+            0, 0, 0, 0, 0, 1.0]
+
         current_time = 0
         end_times = []
         maneuver = 0
-        targeted_state = [self.state[0], self.state[1], self.state[2], self.state[3], self.state[4], self.state[5]]
-
+        step = self.times[1] - self.times[0]
         trajectory_history = [[], [], [], [], [], []]
         while current_time < self.end_seconds:
-            dv, results, current_time, target_status = J2RelativeMotion.j2_sedwick_propagator(targeted_state,
+            dv, results, current_time, target_status = J2RelativeMotion.j2_sedwick_targeter(targeted_state,
                                                                                               self.reference_orbit,
                                                                                               self.times,
-                                                                                              self.times[1] - self.times[0],
-                                                                                              3, self.thresh_min,
+                                                                                              step, self.end_seconds,
+                                                                                              self.thresh_min,
                                                                                               self.thresh_max, False)
             end_times.append(current_time)
             # print("Time until out-of-bounds: ", current_time)
@@ -74,13 +89,18 @@ class Targeter(QWidget):
 
             if target_status:
                 break
-            elif maneuver > 7:
+            elif maneuver > 20:
                 break
 
             # using the dv we've completed, we can now alter the initial state and try again
             targeted_state[3] = dv[3]
             targeted_state[4] = dv[4]
             targeted_state[5] = dv[5]
+
+        self.targeted_state = [targeted_state[0], targeted_state[1], targeted_state[2],
+                               targeted_state[3], targeted_state[4], targeted_state[5]]
+
+        self.state_transition = TargetingUtils.recompose(targeted_state)
 
         self.plot_trajectory_targeted.update_graph([[trajectory_history[0][-1], trajectory_history[1][-1], trajectory_history[2][-1]], ],
                                                    "Targeted Motion for " + str(self.end_seconds) + " seconds | Trajectory: " +
