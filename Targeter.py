@@ -36,11 +36,13 @@ class Targeter(QWidget):
 
         self.targeted_state = []
         self.state_transition = []
+        self.desired_state = []
 
-    def specify_trajectory(self, state, end_seconds, reference_orbit, thresh_min, thresh_max):
+    def specify_trajectory(self, state, desired_state, end_seconds, reference_orbit, thresh_min, thresh_max):
 
         self.reference_orbit = reference_orbit
         self.state = state
+        self.desired_state = desired_state
         self.thresh_min = thresh_min
         self.thresh_max = thresh_max
         self.end_seconds = end_seconds
@@ -67,14 +69,16 @@ class Targeter(QWidget):
         maneuver = 0
         step = self.times[1] - self.times[0]
         trajectory_history = [[], [], [], [], [], []]
+        targeted_state_history = []
         while current_time < self.end_seconds:
-            dv, results, current_time, target_status = J2RelativeMotion.j2_sedwick_targeter(targeted_state,
+            dv, results, current_time, target_status = J2RelativeMotion.j2_sedwick_targeter(targeted_state, self.desired_state,
                                                                                               self.reference_orbit,
                                                                                               self.times,
                                                                                               step, self.end_seconds,
                                                                                               self.thresh_min,
                                                                                               self.thresh_max, False)
             end_times.append(current_time)
+            targeted_state_history.append(targeted_state)
             # print("Time until out-of-bounds: ", current_time)
             current_time = 0
             # let's now archive the propagation we've completed
@@ -89,7 +93,7 @@ class Targeter(QWidget):
 
             if target_status:
                 break
-            elif maneuver > 20:
+            elif maneuver > 10:
                 break
 
             # using the dv we've completed, we can now alter the initial state and try again
@@ -97,11 +101,18 @@ class Targeter(QWidget):
             targeted_state[4] = dv[4]
             targeted_state[5] = dv[5]
 
-        self.targeted_state = [targeted_state[0], targeted_state[1], targeted_state[2],
-                               targeted_state[3], targeted_state[4], targeted_state[5]]
+        closest_time = np.amax(end_times)
+        closest_time_loc = np.where(np.asarray(end_times) == np.amax(np.asarray(end_times)))
 
-        self.state_transition = TargetingUtils.recompose(targeted_state)
+        best_run = closest_time_loc[0][0]
+        self.targeted_state = [targeted_state_history[best_run][0], targeted_state_history[best_run][1], targeted_state_history[best_run][2],
+                               targeted_state_history[best_run][3], targeted_state_history[best_run][4], targeted_state_history[best_run][5]]
 
-        self.plot_trajectory_targeted.update_graph([[trajectory_history[0][-1], trajectory_history[1][-1], trajectory_history[2][-1]], ],
-                                                   "Targeted Motion for " + str(self.end_seconds) + " seconds | Trajectory: " +
-                                                   str(self.state), ["Radial (m)", "In-Track (m)", "Cross-Track (m)"])
+        self.state_transition = TargetingUtils.recompose(targeted_state_history[best_run])
+
+        self.plot_trajectory_targeted.update_graph([[trajectory_history[0][best_run], trajectory_history[1][best_run], trajectory_history[2][best_run]], ],
+                                                   "Targeted Motion for " + str(closest_time)[:8] + " seconds | Trajectory: " +
+                                                   str(self.targeted_state[0])[:7] + ", " + str(self.targeted_state[1])[:7] + ", " +
+                                                   str(self.targeted_state[2])[:7] + ", " + str(self.targeted_state[3])[:7] + ", " +
+                                                   str(self.targeted_state[4])[:7] + ", " + str(self.targeted_state[5])[:7] + ", ",
+                                                   ["Radial (m)", "In-Track (m)", "Cross-Track (m)"])

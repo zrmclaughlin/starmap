@@ -19,7 +19,7 @@ class RelativeLocator(QWidget):
 
         self.plot_regions = GraphWidgets.GraphView3D()
         self.plot_trajectory = GraphWidgets.GraphView3D()
-        self.plot_trajectory_targeted = GraphWidgets.GraphView3D()
+        self.plot_trajectory_magnitude = GraphWidgets.GraphView2D()
 
         self.display_pass_times = QFrame()
         self.display_pass_times_layout = QVBoxLayout()
@@ -42,11 +42,11 @@ class RelativeLocator(QWidget):
         self.layout.addWidget(self.plot_regions)
         self.layout.addWidget(self.plot_trajectory)
         self.layout.addWidget(self.display_pass_times)
-        self.layout.addWidget(self.plot_trajectory_targeted)
+        self.layout.addWidget(self.plot_trajectory_magnitude)
 
         self.plot_regions.hide()
         self.display_pass_times.hide()
-        self.plot_trajectory_targeted.hide()
+        self.plot_trajectory_magnitude.hide()
 
         self.bottom_panel = QFrame()
         self.bottom_layout = QHBoxLayout()
@@ -57,10 +57,13 @@ class RelativeLocator(QWidget):
         self.plot_trajectory_button.clicked.connect(self.when_plot_trajectory_button_clicked)
         self.display_pass_times_button = QPushButton("show pass times")
         self.display_pass_times_button.clicked.connect(self.when_display_pass_times_button_clicked)
+        self.display_magnitude_button = QPushButton("show distance magnitude")
+        self.display_magnitude_button.clicked.connect(self.when_plot_magnitude_button_clicked)
 
         self.bottom_layout.addWidget(self.plot_regions_button)
         self.bottom_layout.addWidget(self.plot_trajectory_button)
         self.bottom_layout.addWidget(self.display_pass_times_button)
+        self.bottom_layout.addWidget(self.display_magnitude_button)
 
         self.enter_trajectory = QLineEdit("")  # enter in format "0.0, 0.0, 0.0, 0.0, 0.0, 0.0"
 
@@ -72,7 +75,7 @@ class RelativeLocator(QWidget):
         self.thresh_max = 10
         self.state = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
         self.end_seconds = 20000
-        self.resolution = self.end_seconds / 2
+        self.resolution = self.end_seconds
         self.times = np.linspace(0.0, self.end_seconds, int(self.resolution))
         self.trajectory = [[], [], []]
         self.reference_orbit = None
@@ -88,17 +91,26 @@ class RelativeLocator(QWidget):
     def when_plot_regions_button_clicked(self):
         self.display_pass_times.hide()
         self.plot_trajectory.hide()
+        self.plot_trajectory_magnitude.hide()
         self.plot_regions.show()
 
     def when_plot_trajectory_button_clicked(self):
         self.plot_regions.hide()
         self.display_pass_times.hide()
+        self.plot_trajectory_magnitude.hide()
         self.plot_trajectory.show()
 
     def when_display_pass_times_button_clicked(self):
         self.plot_regions.hide()
         self.plot_trajectory.hide()
+        self.plot_trajectory_magnitude.hide()
         self.display_pass_times.show()
+
+    def when_plot_magnitude_button_clicked(self):
+        self.plot_regions.hide()
+        self.plot_trajectory.hide()
+        self.display_pass_times.hide()
+        self.plot_trajectory_magnitude.show()
 
     def specify_trajectory(self, state, end_seconds, reference_orbit, thresh_min, thresh_max):
         self.reference_orbit = reference_orbit
@@ -106,10 +118,12 @@ class RelativeLocator(QWidget):
         self.thresh_min = thresh_min
         self.thresh_max = thresh_max
         self.end_seconds = end_seconds
+        self.resolution = self.end_seconds
         self.times = np.linspace(0.0, self.end_seconds, int(self.resolution))
         self.populate_region_graph()
         self.populate_trajectory_graph()
         self.populate_time_graph()
+        self.populate_magnitude_graph()
 
     def populate_region_graph(self):
         t_in, data_in, t_out, data_out = J2RelativeMotion.j2_sedwick_propagator(self.state, self.reference_orbit,
@@ -146,6 +160,21 @@ class RelativeLocator(QWidget):
             self.display_pass_times_table.setItem(i, 0, QTableWidgetItem(str(i)))
 
         self.display_pass_times_graph.update_graph([times, ],
-                                  "Opportunities for " + str(self.end_seconds) + " seconds | Trajectory: " + str(self.state),
-                                  ["Pass Number", "Amount of Time (s)"])
+                                    "Opportunities for " + str(self.end_seconds)[:8] + " seconds | Trajectory: " +
+                                    str(self.state[0])[:7] + ", " + str(self.state[1])[:7] + ", " +
+                                    str(self.state[2])[:7] + ", " + str(self.state[3])[:7] + ", " +
+                                    str(self.state[4])[:7] + ", " + str(self.state[5])[:7] + ", ",
+                                    ["Pass Number", "Amount of Time (s)"])
+
+    def populate_magnitude_graph(self):
+        magnitudes = J2RelativeMotion.j2_sedwick_propagator(self.state, self.reference_orbit,
+                                                       self.times, self.times[1] - self.times[0],
+                                                       4, self.thresh_min, self.thresh_max, False)
+
+        self.plot_trajectory_magnitude.update_graph([magnitudes, ],
+                                    "Distance Magnitude for " + str(self.end_seconds)[:8] + " seconds | Trajectory: " +
+                                    str(self.state[0])[:7] + ", " + str(self.state[1])[:7] + ", " +
+                                    str(self.state[2])[:7] + ", " + str(self.state[3])[:7] + ", " +
+                                    str(self.state[4])[:7] + ", " + str(self.state[5])[:7] + ", ",
+                                    ["Pass Number", "Amount of Time (s)"])
 

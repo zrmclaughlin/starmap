@@ -39,7 +39,7 @@ class GraphView2D(QWidget):
         for item in range(len(data)):
             self.axes.plot(data[item], color=next(colors))
         self.axes.legend(frameon=True)
-        self.axes.legend(loc="best")
+        # self.axes.legend(loc="best")
         self.axes.set_title(title)
         self.axes.set_xlabel(axis_labels[0])
         self.axes.set_ylabel(axis_labels[1])

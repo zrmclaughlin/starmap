@@ -184,7 +184,18 @@ def j2_sedwick_propagator(delta_state_0, reference_orbit, time, step, type, thre
 
         return pass_lengths
 
-def j2_sedwick_targeter(delta_state_0, reference_orbit, time, step, end_seconds, thresh_min, thresh_max, target_status):
+    elif type == 4:
+        magnitudes = []
+        while sc.successful() and step_count < len(t):
+            sc.integrate(sc.t + step)
+            step_count += 1
+            magnitudes.append(np.sqrt(sc.y[0] ** 2 + sc.y[1] ** 2 + sc.y[2] ** 2))
+
+        return magnitudes
+
+
+def j2_sedwick_targeter(delta_state_0, nominal_formation, reference_orbit, time, step, end_seconds, thresh_min,
+                        thresh_max, target_status):
 
     n, c, l, q, phi = evaluate_j2_constants(reference_orbit, delta_state_0)
 
@@ -206,10 +217,6 @@ def j2_sedwick_targeter(delta_state_0, reference_orbit, time, step, end_seconds,
     t = []
 
     dv = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-    # nominal_formation = [0.0, 5.0, 0.0, 0, 0, 0]
-    nominal_formation = [.1, 1, .1, 0, 0, 0] * 1 / np.linalg.norm([1, 1, 0, 0, 0, 0])
-    for i in range(len(nominal_formation)):
-        nominal_formation[i] = 20 * nominal_formation[i]
 
     stable = True
     current_time = 0
