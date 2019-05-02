@@ -56,13 +56,13 @@ class StarMapGUI(QWidget):
         # Size tabs
         self.tabs.resize(600, 400)
 
-        self.x_pos = QLineEdit("0.0")
+        self.x_pos = QLineEdit("0.1")
         self.x_p_var = QLineEdit("0.1")
-        self.y_pos = QLineEdit("0.0")
+        self.y_pos = QLineEdit("0.1")
         self.y_p_var = QLineEdit("0.1")
         self.z_pos = QLineEdit("0.01")
         self.z_p_var = QLineEdit("0.1")
-        self.x_vel = QLineEdit("0.0")
+        self.x_vel = QLineEdit("-0.02")
         self.x_v_var = QLineEdit("0.1")
         self.y_vel = QLineEdit("0.0")
         self.y_v_var = QLineEdit("0.1")
@@ -113,23 +113,14 @@ class StarMapGUI(QWidget):
         self.starmap_name_frame = QFrame()
         self.relmot_frame = QFrame()
         self.reforbit_frame = QFrame()
-        self.resolution_frame = QFrame()
-        self.timing_frame = QFrame()
-        self.threshold_frame = QFrame()
-        self.dropdown_frame = QFrame()
 
         self.set_ic_title_layout()
-        self.set_ic_tab_relmot_layout()
+        # self.set_ic_tab_relmot_layout()
         self.set_ic_tab_orbit_threshold_timing()
-        self.set_ic_dropdown_layout()
 
         total_layout = QVBoxLayout()
         total_layout.addWidget(self.starmap_name_frame)
         total_layout.addWidget(self.reforbit_frame)
-        total_layout.addWidget(self.threshold_frame)
-        total_layout.addWidget(self.resolution_frame)
-        total_layout.addWidget(self.dropdown_frame)
-        total_layout.addWidget(self.timing_frame)
         total_layout.addWidget(self.relmot_frame)
         total_layout.addWidget(self.start_button_heatmap)
         total_layout.addWidget(self.select_relloc_trajectory_button)
@@ -159,43 +150,88 @@ class StarMapGUI(QWidget):
         self.starmap_name_frame.setLayout(ic_layout)
 
     def set_ic_tab_orbit_threshold_timing(self):
+
         ic_layout = QGridLayout()
 
-        label_row = QLabel()
-        label_row.setText("Ref. inclination")
-        ic_layout.addWidget(label_row, 0, 0)
-        ic_layout.addWidget(self.reference_inclination, 0, 1)
-        ic_layout.addWidget(QLabel("Units"), 0, 1)
+        initial_state_subtitle_1 = QLabel("<b>Reference</b>")
+
+        ic_layout.addWidget(initial_state_subtitle_1, 0, 2)
+        ic_layout.addWidget(QLabel("<b>Properties</b>"), 0, 3)
+
+        ic_layout.addWidget(QLabel("Ref. inclination"), 1, 0)
+        ic_layout.addWidget(self.reference_inclination, 1, 1)
+        ic_layout.addWidget(QLabel("radians"), 1, 2)
+
+        ic_layout.addWidget(QLabel("Ref. semi-major axis"), 1, 3)
+        ic_layout.addWidget(self.reference_semimajor_axis, 1, 4)
+        ic_layout.addWidget(QLabel("meters"), 1, 5)
+
+        ic_layout.addWidget(QLabel("Max. position threshold"), 2, 0)
+        ic_layout.addWidget(self.maximum_distance_threshold, 2, 1)
+        ic_layout.addWidget(QLabel("meters"), 2, 2)
+
+        ic_layout.addWidget(QLabel("Min. position threshold"), 2, 3)
+        ic_layout.addWidget(self.minimum_distance_threshold, 2, 4)
+        ic_layout.addWidget(QLabel("meters"), 2, 5)
+
+        ic_layout.addWidget(QLabel("Time for propagation"), 3, 0)
+        ic_layout.addWidget(self.propagation_time, 3, 1)
+        ic_layout.addWidget(QLabel("seconds"), 3, 2)
+
+        ic_layout.addWidget(QLabel("Values to record"), 3, 3)
+        ic_layout.addWidget(self.values_record, 3, 4)
+        ic_layout.addWidget(QLabel("#"), 3, 5)
+
+        initial_state_subtitle_2 = QLabel("<b>Initial State</b>")
+
+        ic_layout.addWidget(initial_state_subtitle_2, 4, 2)
+        ic_layout.addWidget(QLabel("<b>Properties</b>"), 4, 3)
+
+        ic_layout_titles = ["Radial Position", "In-Track Position", "Cross-Track Position",
+                            "Radial Velocity", "In-Track Velocity", "Cross-Track Velocity"]
+
+        ic_layout_units = ["meters", "meters", "meters",
+                            "meters/second", "meters/second", "meters/second"]
+
+        condition_number = 6
+
+        ic_layout.addWidget(QLabel("Parameter"), 5, 0)
+        ic_layout.addWidget(QLabel("Mean Value"), 5, 1)
+        ic_layout.addWidget(QLabel("+/- Variance"), 5, 4)
+
+        for index in range(condition_number):
+            label_row = QLabel()
+            label_row.setText(ic_layout_titles[index])
+
+            ic_layout.addWidget(label_row, index+6, 0)
+            ic_layout.addWidget(self.state_elements[index], index+6, 1)
+            ic_layout.addWidget(QLabel(ic_layout_units[index]), index + 6, 2)
+            ic_layout.addWidget(self.state_variances[index], index+6, 4)
+            ic_layout.addWidget(QLabel(ic_layout_units[index]), index + 6, 5)
+
+        initial_state_subtitle_3 = QLabel("<b>Heat Map</b>")
+
+        ic_layout.addWidget(initial_state_subtitle_3, 12, 2)
+        ic_layout.addWidget(QLabel("<b>Properties</b>"), 12, 3)
 
         label_row = QLabel()
-        label_row.setText("Ref. semi-major axis")
-        ic_layout.addWidget(label_row, 0, 2)
-        ic_layout.addWidget(self.reference_semimajor_axis, 0, 3)
-        ic_layout.addWidget(QLabel("Units"), 0, 3)
+        label_row.setText("Heat Map Axes")
+        ic_layout.addWidget(label_row, 13, 0)
+
+        item_list = ["X Velocity", "X Position", "Y Velocity", "Y Position", "Z Velocity", "Z Position"]
+        self.heatmap_drop_down_menu_x_axis.activated.connect(self.heatmap_choice_x)
+        self.heatmap_drop_down_menu_x_axis.addItems(item_list)
+        ic_layout.addWidget(self.heatmap_drop_down_menu_x_axis, 13, 1)
+
+        item_list = ["Y Velocity", "Y Position", "X Velocity", "X Position", "Z Velocity", "Z Position"]
+        self.heatmap_drop_down_menu_y_axis.activated.connect(self.heatmap_choice_y)
+        self.heatmap_drop_down_menu_y_axis.addItems(item_list)
+        ic_layout.addWidget(self.heatmap_drop_down_menu_y_axis, 13, 4)
 
         label_row = QLabel()
-        label_row.setText("Max. position threshold")
-        ic_layout.addWidget(label_row, 1, 0)
-        ic_layout.addWidget(self.maximum_distance_threshold, 1, 1)
-        ic_layout.addWidget(QLabel("Units"), 1, 1)
-
-        label_row = QLabel()
-        label_row.setText("Min. position threshold")
-        ic_layout.addWidget(label_row, 1, 2)
-        ic_layout.addWidget(self.minimum_distance_threshold, 1, 3)
-        ic_layout.addWidget(QLabel("Units"), 1, 3)
-
-        label_row = QLabel()
-        label_row.setText("Time for propagation")
-        ic_layout.addWidget(label_row, 2, 0)
-        ic_layout.addWidget(self.propagation_time, 2, 1)
-        ic_layout.addWidget(QLabel("Units"), 2, 1)
-
-        label_row = QLabel()
-        label_row.setText("# Values to record")
-        ic_layout.addWidget(label_row, 2, 2)
-        ic_layout.addWidget(self.values_record, 2, 3)
-        ic_layout.addWidget(QLabel("Units"), 2, 3)
+        label_row.setText("Heat Map Resolution")
+        ic_layout.addWidget(label_row, 14, 0)
+        ic_layout.addWidget(self.resolution, 14, 1)
 
         self.reforbit_frame.setLayout(ic_layout)
 
@@ -227,38 +263,11 @@ class StarMapGUI(QWidget):
         elif text == 5:
             self.heatmap_y_axis = 2
 
-    def set_ic_dropdown_layout(self):
-        ic_layout = QHBoxLayout()
-
-        label_row = QLabel()
-        label_row.setText("HeatMap Axes")
-        ic_layout.addWidget(label_row)
-
-        item_list = ["X Velocity", "X Position", "Y Velocity", "Y Position", "Z Velocity", "Z Position"]
-        self.heatmap_drop_down_menu_x_axis.activated.connect(self.heatmap_choice_x)
-        self.heatmap_drop_down_menu_x_axis.addItems(item_list)
-        ic_layout.addWidget(self.heatmap_drop_down_menu_x_axis)
-
-        item_list = ["Y Velocity", "Y Position", "X Velocity", "X Position", "Z Velocity", "Z Position"]
-        self.heatmap_drop_down_menu_y_axis.activated.connect(self.heatmap_choice_y)
-        self.heatmap_drop_down_menu_y_axis.addItems(item_list)
-        ic_layout.addWidget(self.heatmap_drop_down_menu_y_axis)
-
-        self.dropdown_frame.setLayout(ic_layout)
-
-    def set_ic_resolution_layout(self):
-        ic_layout = QHBoxLayout()
-
-        label_row = QLabel()
-        label_row.setText("HeatMap Axis resolution")
-        ic_layout.addWidget(label_row)
-        ic_layout.addWidget(self.resolution)
-
-        self.timing_frame.setLayout(ic_layout)
-
     def set_ic_tab_relmot_layout(self):
         ic_layout_titles = ["Radial Position", "In-Track Position", "Cross-Track Position",
                             "Radial Velocity", "In-Track Velocity", "Cross-Track Velocity"]
+        ic_layout_units = ["meters", "meters", "meters",
+                            "meters/second", "meters/second", "meters/second"]
         condition_number = 6
         ic_layout = QGridLayout()
 
@@ -272,7 +281,9 @@ class StarMapGUI(QWidget):
 
             ic_layout.addWidget(label_row, index+1, 0)
             ic_layout.addWidget(self.state_elements[index], index+1, 1)
-            ic_layout.addWidget(self.state_variances[index], index+1, 2)
+            ic_layout.addWidget(QLabel(ic_layout_units[index]), index + 1, 2)
+            ic_layout.addWidget(self.state_variances[index], index+1, 4)
+            ic_layout.addWidget(QLabel(ic_layout_units[index]), index + 1, 5)
 
         self.relmot_frame.setLayout(ic_layout)
 
