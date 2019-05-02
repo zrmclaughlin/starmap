@@ -115,13 +115,11 @@ class StarMapGUI(QWidget):
         self.reforbit_frame = QFrame()
 
         self.set_ic_title_layout()
-        # self.set_ic_tab_relmot_layout()
         self.set_ic_tab_orbit_threshold_timing()
 
         total_layout = QVBoxLayout()
         total_layout.addWidget(self.starmap_name_frame)
         total_layout.addWidget(self.reforbit_frame)
-        total_layout.addWidget(self.relmot_frame)
         total_layout.addWidget(self.start_button_heatmap)
         total_layout.addWidget(self.select_relloc_trajectory_button)
         total_layout.addWidget(self.select_target_trajectory_button)
@@ -166,15 +164,15 @@ class StarMapGUI(QWidget):
         ic_layout.addWidget(self.reference_semimajor_axis, 1, 4)
         ic_layout.addWidget(QLabel("meters"), 1, 5)
 
-        ic_layout.addWidget(QLabel("Max. position threshold"), 2, 0)
+        ic_layout.addWidget(QLabel("Max. position"), 2, 0)
         ic_layout.addWidget(self.maximum_distance_threshold, 2, 1)
         ic_layout.addWidget(QLabel("meters"), 2, 2)
 
-        ic_layout.addWidget(QLabel("Min. position threshold"), 2, 3)
+        ic_layout.addWidget(QLabel("Min. position"), 2, 3)
         ic_layout.addWidget(self.minimum_distance_threshold, 2, 4)
         ic_layout.addWidget(QLabel("meters"), 2, 5)
 
-        ic_layout.addWidget(QLabel("Time for propagation"), 3, 0)
+        ic_layout.addWidget(QLabel("Propagation time"), 3, 0)
         ic_layout.addWidget(self.propagation_time, 3, 1)
         ic_layout.addWidget(QLabel("seconds"), 3, 2)
 
@@ -195,10 +193,6 @@ class StarMapGUI(QWidget):
 
         condition_number = 6
 
-        ic_layout.addWidget(QLabel("Parameter"), 5, 0)
-        ic_layout.addWidget(QLabel("Mean Value"), 5, 1)
-        ic_layout.addWidget(QLabel("+/- Variance"), 5, 4)
-
         for index in range(condition_number):
             label_row = QLabel()
             label_row.setText(ic_layout_titles[index])
@@ -206,6 +200,7 @@ class StarMapGUI(QWidget):
             ic_layout.addWidget(label_row, index+6, 0)
             ic_layout.addWidget(self.state_elements[index], index+6, 1)
             ic_layout.addWidget(QLabel(ic_layout_units[index]), index + 6, 2)
+            ic_layout.addWidget(QLabel("         +/-"), index + 6, 3)
             ic_layout.addWidget(self.state_variances[index], index+6, 4)
             ic_layout.addWidget(QLabel(ic_layout_units[index]), index + 6, 5)
 
@@ -262,30 +257,6 @@ class StarMapGUI(QWidget):
             self.heatmap_y_axis = 5
         elif text == 5:
             self.heatmap_y_axis = 2
-
-    def set_ic_tab_relmot_layout(self):
-        ic_layout_titles = ["Radial Position", "In-Track Position", "Cross-Track Position",
-                            "Radial Velocity", "In-Track Velocity", "Cross-Track Velocity"]
-        ic_layout_units = ["meters", "meters", "meters",
-                            "meters/second", "meters/second", "meters/second"]
-        condition_number = 6
-        ic_layout = QGridLayout()
-
-        ic_layout.addWidget(QLabel("Parameter"), 0, 0)
-        ic_layout.addWidget(QLabel("Mean Value"), 0, 1)
-        ic_layout.addWidget(QLabel("+/- Variance"), 0, 2)
-
-        for index in range(condition_number):
-            label_row = QLabel()
-            label_row.setText(ic_layout_titles[index])
-
-            ic_layout.addWidget(label_row, index+1, 0)
-            ic_layout.addWidget(self.state_elements[index], index+1, 1)
-            ic_layout.addWidget(QLabel(ic_layout_units[index]), index + 1, 2)
-            ic_layout.addWidget(self.state_variances[index], index+1, 4)
-            ic_layout.addWidget(QLabel(ic_layout_units[index]), index + 1, 5)
-
-        self.relmot_frame.setLayout(ic_layout)
 
     def get_initial_info(self):
 
