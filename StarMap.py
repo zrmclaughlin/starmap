@@ -57,17 +57,17 @@ class StarMapGUI(QWidget):
         # Size tabs
         self.tabs.resize(600, 400)
 
-        self.x_pos = QLineEdit("0.1")
+        self.x_pos = QLineEdit("0.1")  # 0.0
         self.x_p_var = QLineEdit("0.1")
-        self.y_pos = QLineEdit("0.1")
+        self.y_pos = QLineEdit("0.1")  # 0.1
         self.y_p_var = QLineEdit("0.1")
-        self.z_pos = QLineEdit("0.01")
+        self.z_pos = QLineEdit("0.01")  # 0.01
         self.z_p_var = QLineEdit("0.1")
-        self.x_vel = QLineEdit("-0.02")
+        self.x_vel = QLineEdit("-0.02")  # -0.02
         self.x_v_var = QLineEdit("0.1")
-        self.y_vel = QLineEdit("0.0")
+        self.y_vel = QLineEdit("0.0")  # 0.0
         self.y_v_var = QLineEdit("0.1")
-        self.z_vel = QLineEdit("0.01")
+        self.z_vel = QLineEdit("0.01")  # 0.01
         self.z_v_var = QLineEdit("0.1")
 
         self.state_elements = [self.x_pos, self.y_pos, self.z_pos, self.x_vel, self.y_vel, self.z_vel]
@@ -139,17 +139,17 @@ class StarMapGUI(QWidget):
         self.ic_tab.setLayout(total_layout)
 
     def get_app_title_message(self):
-        title_string = ['<b> Welcome to STARMAP! </b>', '<b> im gonna FREAK IT </b>', '<b> first... i park my car </b>',
-                        '<b> im going FERAL </b>', '<b> me when I get you </b>', '<b> ;) </b>',
-                        '<b> im feeling the effect... </b>', '<b> the sensation </b>',
-                        '<b> what if we kissed in walmart and we were both heterosexual :O </b>', '<b> hi im evil </b>',
-                        '<b> slug academy </b>', '<b> going :airplane_emoji: buffalo milk </b>',
-                        '<b> the anti effect </b>', '<b> Time to plot this plant... </b>', '<b> Understood. </b>',
-                        '<b> you DONT have the super monkey ball controller :/ </b>',
-                        '<b> you DONT have the apple tv remote </b>', '<b> i wish i was at the club :( </b>',
-                        '<b> we are all love mitski </b>', '<b> :hole_2: </b>', '<b>bock bock sweetie</b>',
-                        '<b>welcome to kfc hunny</b>']
-        # title_string = ['<b> Welcome to STARMAP! </b>', '<b> Welcome to STARMAP! </b>']
+        # title_string = ['<b> im gonna FREAK IT </b>', '<b> first... i park my car </b>',
+        #                 '<b> im going FERAL </b>', '<b> me when I get you </b>', '<b> ;) </b>',
+        #                 '<b> im feeling the effect... </b>', '<b> the sensation </b>',
+        #                 '<b> what if we kissed in walmart and we were both heterosexual :O </b>', '<b> hi im evil </b>',
+        #                 '<b> slug academy </b>', '<b> going :airplane_emoji: buffalo milk </b>',
+        #                 '<b> the anti effect </b>', '<b> Time to plot this plant... </b>', '<b> Understood. </b>',
+        #                 '<b> you DONT have the super monkey ball controller :/ </b>',
+        #                 '<b> you DONT have the apple tv remote </b>', '<b> i wish i was at the club :( </b>',
+        #                 '<b> we are all love mitski </b>', '<b> :hole_2: </b>', '<b>bock bock sweetie</b>',
+        #                 '<b>welcome to kfc hunny</b>']
+        title_string = ['<b> STARMAP Demo </b>', '<b> STARMAP Demo </b>']
         return random.choice(title_string)
 
     def set_ic_title_layout(self):
@@ -346,6 +346,7 @@ class StarMapGUI(QWidget):
 
     @pyqtSlot()
     def when_targeted_trajectory_to_relloc_button_clicked(self):
+        print(self.target_tab.targeted_state)
         self.get_initial_info()
         self.relloc_tab.specify_trajectory(self.target_tab.targeted_state,
                                            self.target_tab.end_seconds, self.reference_orbit,

@@ -38,7 +38,7 @@ class GraphView2D(QWidget):
             ["C0", "C1", "C2", "C3", "C4", "C5", "C6", "C7", "C8", "C9"])
         for item in range(len(data)):
             self.axes.plot(data[item], color=next(colors))
-        self.axes.legend(frameon=True)
+        # self.axes.legend(frameon=True)
         # self.axes.legend(loc="best")
         self.axes.set_title(title)
         self.axes.set_xlabel(axis_labels[0])

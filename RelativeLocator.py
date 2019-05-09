@@ -138,6 +138,8 @@ class RelativeLocator(QWidget):
 
     def populate_trajectory_graph(self):
 
+        print(self.state)
+
         trajectory = J2RelativeMotion.j2_sedwick_propagator(self.state, self.reference_orbit,
                                                             self.times, self.times[1] - self.times[0],
                                                             0, self.thresh_min, self.thresh_max, False)
@@ -176,5 +178,5 @@ class RelativeLocator(QWidget):
                                     str(self.state[0])[:7] + ", " + str(self.state[1])[:7] + ", " +
                                     str(self.state[2])[:7] + ", " + str(self.state[3])[:7] + ", " +
                                     str(self.state[4])[:7] + ", " + str(self.state[5])[:7] + ", ",
-                                    ["Pass Number", "Amount of Time (s)"])
+                                    ["Time (s)", "Distance (m)"])
 

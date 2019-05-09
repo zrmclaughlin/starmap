@@ -110,6 +110,9 @@ class Targeter(QWidget):
 
         self.state_transition = TargetingUtils.recompose(targeted_state_history[best_run])
 
+        print(trajectory_history[0][best_run][0], trajectory_history[1][best_run][0], trajectory_history[2][best_run][0],
+              trajectory_history[3][best_run][0], trajectory_history[4][best_run][0], trajectory_history[5][best_run][0])
+
         self.plot_trajectory_targeted.update_graph([[trajectory_history[0][best_run], trajectory_history[1][best_run], trajectory_history[2][best_run]], ],
                                                    "Targeted Motion for " + str(closest_time)[:8] + " seconds | Trajectory: " +
                                                    str(self.targeted_state[0])[:7] + ", " + str(self.targeted_state[1])[:7] + ", " +

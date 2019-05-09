@@ -48,6 +48,7 @@ class HeatMap(QWidget):
         self.layout.addWidget(self.bottom_panel)
 
     def choose_trajectory_to_propagate(self, text):
+        print(text)
         self.current_trajectory[self.x_axis] = self.maximum_time_x_axis_values[text]
         self.current_trajectory[self.y_axis] = self.maximum_time_y_axis_values[text]
 
