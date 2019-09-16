@@ -84,8 +84,8 @@ def chen_jing_eom(t, state, rho_0, H, r_0, c_d, a_m_chaser, a_m_reference):
 
 
 def j2_drag_ecc_propagator(state_0, rho_0, H, r_0, c_d, a_m_chaser, a_m_reference, time, step):
-    sc = sp.integrate.ode(lambda t, x: chen_jing_eom(t, state_0, rho_0, H, r_0, c_d, a_m_chaser, a_m_reference)).set_integrator('dopri5', atol=1e-12,
-                                                                                          rtol=1e-12)
+    sc = sp.integrate.ode(lambda t, x: chen_jing_eom(t, x, rho_0, H, r_0, c_d, a_m_chaser, a_m_reference)).set_integrator('dopri5', atol=1e-10,
+                                                                                          rtol=1e-10)
     sc.set_initial_value(state_0, time[0])
     t = np.zeros((len(time), len(state_0)))
     result = np.zeros((len(time), len(state_0)))
@@ -129,10 +129,10 @@ def main():
     state = [v_z, r_reference, h_reference, raan_reference, i_reference, theta_reference,
              x_0, y_0, z_0, p1, p2, p3]
     end_seconds = 10000
-    time = np.linspace(0, end_seconds, 10000)
+    steps = 500
+    time = np.linspace(0, end_seconds, steps)
     # print(time)
-    results = j2_drag_ecc_propagator(state, rho_0, H, r_0, c_d, a_m_chaser, a_m_reference, time, 1)
-    print(results[1])
+    results = j2_drag_ecc_propagator(state, rho_0, H, r_0, c_d, a_m_chaser, a_m_reference, time, steps)
     ax = plt.axes(projection='3d')
     ax.set_xlabel("Radial")
     ax.set_ylabel("In-Track")
