@@ -13,7 +13,7 @@ matplotlib.rcParams.update({'font.size': 8})
 from mpl_toolkits import mplot3d
 
 r_e = 6378136.3
-j2 = 1.082626E-3
+j2 = 1082.626E-6
 mu = 3.986004415E14
 k_j2 = 3*j2*mu*r_e**2 / 2
 
@@ -25,17 +25,17 @@ def get_rho(rho_0, r, r_0, H):
 def get_r_chaser(x, y, z, r_reference):
     return [x, y, z - r_reference]
 
-def get_raan_dot(i_reference, theta, h, r):
-    return -2*k_j2*np.cos(i_reference)*np.sin(theta)**2 / h / r**3
+# def get_raan_dot(i_reference, theta, h, r):
+#     return -2*k_j2*np.cos(i_reference)*np.sin(theta)**2 / (h * r**3)
+#
+# def get_i_dot(i_reference, theta_reference, h, r):
+#     return -k_j2*np.sin(2*i_reference)*np.sin(2*theta_reference) / (2 * h * r**3)
+#
+# def get_theta_dot(i_reference, theta_reference, h, r):
+#     return h / r**2 + 2*k_j2*np.cos(i_reference)**2 * np.sin(theta_reference)**2 / ( h * r**3)
 
-def get_i_dot(i_reference, theta, h, r):
-    return -k_j2*np.sin(2*i_reference)*np.sin(2*theta) / 2 / h / r**3
-
-def get_theta_dot(i_reference, theta, h, r):
-    return h**2 / r + 2*k_j2*np.cos(i_reference)**2 * np.sin(theta)**2 / h / r**3
-
-def get_Z_chaser(x, y, z, r_reference, theta, i_reference):
-    return x*np.cos(theta)*np.sin(i_reference) - y*np.cos(i_reference) - (z - r_reference)*np.sin(theta)*np.sin(i_reference)
+def get_Z_chaser(x, y, z, r_reference, i_reference, theta_reference):
+    return x*np.cos(theta_reference)*np.sin(i_reference) - y*np.cos(i_reference) - (z - r_reference)*np.sin(theta_reference)*np.sin(i_reference)
 
 def get_zeta(Z_chaser, r_chaser):
     return 2*k_j2*Z_chaser / r_chaser**5
@@ -44,7 +44,8 @@ def get_w_bar(Z_chaser, r_chaser):
     return -mu/r_chaser**3 - k_j2 / r_chaser**5 + 5*k_j2*Z_chaser**2 / r_chaser**7
 
 def get_w_reference(h_reference, r_reference, i_reference, theta_reference):
-    return [0, -h_reference/r_reference**2, k_j2*np.sin(2*i_reference)*np.sin(theta_reference) / h_reference / r_reference**2]
+    print(-h_reference/r_reference**2)
+    return [0, -h_reference/r_reference**2, k_j2*np.sin(2*i_reference)*np.sin(theta_reference) / (h_reference * r_reference**3)]
 
 ############### EOMs ####################
 
@@ -54,32 +55,35 @@ def chen_jing_eom(t, state, rho_0, H, r_0, c_d, a_m_chaser, a_m_reference):
     v_reference = [state[2]/state[1], 0, state[0]]
     r_chaser = get_r_chaser(state[6], state[7], state[8], state[1])
     w_reference = get_w_reference(state[2], state[1], state[4], state[5])
-    Z_chaser = get_Z_chaser(state[6], state[7], state[8], state[1], state[5], state[4])
+    Z_chaser = get_Z_chaser(state[6], state[7], state[8], state[1], state[4], state[5])
     w_bar = get_w_bar(Z_chaser, np.linalg.norm(r_chaser))
     zeta = get_zeta(Z_chaser, np.linalg.norm(r_chaser))
+    # w_bar = .4
+    # zeta = .6
 
     state_size = len(state)  # 1: implies x ODEs
     dstate_dt = np.zeros((1, state_size))
 
-    rho_reference = get_rho(rho_0, state[1], r_0, H)
-
-    dstate_dt[0][0] = mu / state[1]**2 - state[2]**2 / state[1]**3 + k_j2 / state[1]**4 * (1 - 3*np.sin(state[4])**2 * np.sin(state[5])**2) - .5*rho_reference*c_d*a_m_reference*state[0]*np.linalg.norm(v_reference)  # d v_z / dt
+    # rho_reference = get_rho(rho_0, state[1], r_0, H)
+    # print(np.linalg.norm(v_reference), r_chaser, t)
+    dstate_dt[0][0] = mu / state[1]**2 - state[2]**2 / state[1]**3 + k_j2 / state[1]**4 * (1 - 3*np.sin(state[4])**2 * np.sin(state[5])**2)  #  - .5*rho_reference*c_d*a_m_reference*state[0]*np.linalg.norm(v_reference)  # d v_z / dt
     dstate_dt[0][1] = - state[0] # d r / dt
-    dstate_dt[0][2] = - k_j2 * np.sin(state[4])**2 * np.sin(2*state[5])**2 - .5 * rho_reference * c_d * a_m_reference * state[0] * np.linalg.norm(v_reference)  # d h_reference / dt
-    dstate_dt[0][3] = - 2 * k_j2 * np.cos(state[4])*np.sin(state[5])  # d raan_reference / dt
-    dstate_dt[0][4] = - k_j2 * np.sin(2*state[5])*np.sin(2*state[4]) / 2 / state[2] / state[1]**3  # d i_reference / dt
-    dstate_dt[0][5] = state[2] / state[1]**2 + 2 * k_j2 * np.cos(state[4])**2*np.sin(state[5])**2 / state[2] / state[1] ** 2  # d theta_reference / dt
+    dstate_dt[0][2] = - k_j2 * np.sin(state[4])**2 * np.sin(2*state[5])**2  / state[1]**3  #  - .5 * rho_reference * c_d * a_m_reference * state[0] * np.linalg.norm(v_reference)  # d h_reference / dt
+    print(dstate_dt[0][2])
+    dstate_dt[0][3] = - 2 * k_j2 * np.cos(state[4])*np.sin(state[5])**2 / (state[2] * state[1]**3)  # d raan_reference / dt
+    dstate_dt[0][4] = - k_j2 * np.sin(2*state[5])*np.sin(2*state[4]) / (2 * state[2] * state[1]**3)  # d i_reference / dt
+    dstate_dt[0][5] = state[2] / state[1]**2 + 2 * k_j2 * np.cos(state[4])**2 * np.sin(state[5])**2 / (state[2] * state[1] ** 3)  # d theta_reference / dt
     dstate_dt[0][6] = state[9] + state[7]*w_reference[2] - (state[8] - state[1])*w_reference[1]  # d x / dt
     dstate_dt[0][7] = state[10] - state[6]*w_reference[2]  # d y / dt
     dstate_dt[0][8] = state[11] - state[0] + state[6]*w_reference[1]  # d z / dt
-    v_chaser = [dstate_dt[0][6] - state[7]*w_reference[2] + (state[8] - state[1])*w_reference[1],
-                dstate_dt[0][7] + state[6]*w_reference[2],
-                dstate_dt[0][8] + state[0] - state[6]*w_reference[1]]
-    rho_chaser = get_rho(rho_0, np.linalg.norm(r_chaser), r_0, H)
-    f_drag_constant = -.5*rho_chaser*c_d*a_m_chaser*np.linalg.norm(v_chaser)
-    dstate_dt[0][9] = w_bar * state[6] - zeta*np.cos(state[5])*np.sin(state[1]) + state[10]*w_reference[2] - state[11]*w_reference[1] + f_drag_constant*(dstate_dt[0][6] - state[7]*w_reference[2] + (state[8] - state[1])*w_reference[1])  # d p1 / dt
-    dstate_dt[0][10] = w_bar * state[7] + zeta*np.cos(state[4]) + state[9]*w_reference[2] + f_drag_constant*(dstate_dt[0][7] + w_reference[2]*state[6])  # d p2 / dt
-    dstate_dt[0][11] = w_bar * (state[8] - state[1]) + zeta*np.sin(state[5])*np.sin(state[4]) + state[9]*w_reference[1] + f_drag_constant*(dstate_dt[0][8] + state[0] - state[6]*w_reference[1])  # d p3 / dt
+    # v_chaser = [dstate_dt[0][6] - state[7]*w_reference[2] + (state[8] - state[1])*w_reference[1],
+    #             dstate_dt[0][7] + state[6]*w_reference[2],
+    #             dstate_dt[0][8] + state[0] - state[6]*w_reference[1]]
+    # rho_chaser = get_rho(rho_0, np.linalg.norm(r_chaser), r_0, H)
+    # f_drag_constant = -.5*rho_chaser*c_d*a_m_chaser*np.linalg.norm(v_chaser)
+    dstate_dt[0][9] = w_bar * state[6] - zeta*np.cos(state[5])*np.sin(state[1]) + state[10]*w_reference[2] - state[11]*w_reference[1]  #  + f_drag_constant*v_chaser[0]  # d p1 / dt
+    dstate_dt[0][10] = w_bar * state[7] + zeta*np.cos(state[4]) + state[9]*w_reference[2] # + f_drag_constant*v_chaser[1]  # d p2 / dt
+    dstate_dt[0][11] = w_bar * (state[8] - state[1]) + zeta*np.sin(state[5])*np.sin(state[4]) + state[9]*w_reference[1]  #  + f_drag_constant*v_chaser[2]  # d p3 / dt
     return dstate_dt
 
 
@@ -129,18 +133,20 @@ def main():
     state = [v_z, r_reference, h_reference, raan_reference, i_reference, theta_reference,
              x_0, y_0, z_0, p1, p2, p3]
     end_seconds = 10000
-    steps = 500
+    steps = 5000
     time = np.linspace(0, end_seconds, steps)
     # print(time)
+    # print(time)
     results = j2_drag_ecc_propagator(state, rho_0, H, r_0, c_d, a_m_chaser, a_m_reference, time, steps)
-    ax = plt.axes(projection='3d')
-    ax.set_xlabel("Radial")
-    ax.set_ylabel("In-Track")
-    ax.set_zlabel("Cross-Track")
-    ax.set_title("Relative Motion for " + str(end_seconds) + " seconds")
-
-    # Data for a three-dimensional line
-    ax.plot3D(results[0], results[1], results[2])
+    # ax = plt.axes(projection='3d')
+    # ax.set_xlabel("Radial")
+    # ax.set_ylabel("In-Track")
+    # ax.set_zlabel("Cross-Track")
+    # ax.set_title("Relative Motion for " + str(end_seconds) + " seconds")
+    #
+    # # Data for a three-dimensional line
+    # ax.plot3D(results[0], results[1], results[2])
+    plt.plot(time, results[2])
     plt.show()
 
     return
