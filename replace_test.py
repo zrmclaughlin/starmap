@@ -45,13 +45,17 @@ def chen_jing_eom(t, state):
     return dstate_dt
 
 
-def j2_drag_ecc_propagator(state_0, time, step):
-    sc = sp.integrate.ode(lambda t, x: chen_jing_eom(t, x)).set_integrator('dopri5', atol=1e-10,
-                                                                                          rtol=1e-5)
-    sc.set_initial_value(state_0, time[0])
-    t = np.zeros((len(time), len(state_0)))
-    result = np.zeros((len(time), len(state_0)))
-    t[0] = time[0]
+def j2_drag_ecc_propagator(state_0, time, number_of_points):
+
+    time_vector = np.linspace(0.0, time, number_of_points)
+    step = time_vector[1] - time_vector[0]
+    sc = sp.integrate.ode(lambda t, x: chen_jing_eom(t, x)).set_integrator('dopri5',
+                                                                            atol=1e-10,
+                                                                            rtol=1e-5)
+    sc.set_initial_value(state_0, )
+    t = np.zeros((len(time_vector), len(state_0)))
+    result = np.zeros((len(time_vector), len(state_0)))
+    t[0] = time_vector[0]
     result[0][:] = state_0
     step_count = 1
 
@@ -61,7 +65,7 @@ def j2_drag_ecc_propagator(state_0, time, step):
         result[step_count][:] = sc.y
         step_count += 1
 
-    return [result[:, 5], result[:, 6], result[:, 7]]
+    return time_vector, [result[:, 5], result[:, 6], result[:, 7]]
 
 
 def main():
@@ -89,11 +93,18 @@ def main():
 
     state = [r_reference, v_z, h_reference, theta_reference, i_reference, x_0, y_0, z_0, p1, p2, p3]
 
-    end_seconds = 1000
-    steps = 500
-    time = np.linspace(0, end_seconds, steps)
-    results = j2_drag_ecc_propagator(state, time, steps)
-    plt.plot(time, results[2])
+    number_of_steps = 400000
+    time = 40000
+    recorded_times, results = j2_drag_ecc_propagator(state, time, number_of_steps)
+    ax = plt.axes(projection='3d')
+    ax.set_xlabel("Radial")
+    ax.set_ylabel("In-Track")
+    ax.set_zlabel("Cross-Track")
+    ax.set_title("Relative Motion for " + str(time) + " seconds")
+
+    # Data for a three-dimensional line
+    ax.plot3D(results[0], results[1], results[2])
+    # plt.plot(time, results[2])
     plt.show()
 
     return
