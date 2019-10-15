@@ -10,10 +10,10 @@ mu = 3.986004415E14
 
 # ######################## TARGETING SEDWICK J2 REOM ######################### #
 
+
 def sedwick_eom_st(t, delta_state, A, n, c, l, q, phi):
     state_size = len(delta_state)  # 1: implies x ODEs
     dx_dt = np.zeros((1, state_size))
-
     S_T = TargetingUtils.recompose(delta_state)
     S_T_dt = np.matmul(A, S_T).tolist()
 
