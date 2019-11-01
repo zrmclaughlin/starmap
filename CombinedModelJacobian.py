@@ -1,4 +1,5 @@
 from sympy import *
+import sympy as sp
 # State Variables
 r_reference, v_z, h_reference, theta_reference, i_reference, x, y, z, p1, p2, p3 = \
     symbols('r_reference v_z h_reference theta_reference i_reference x y z p1 p2 p3', real=True)
@@ -50,6 +51,27 @@ def get_jacobian(c_d, a_m_reference, a_m_chaser, r_0, rho_0, H):
     return CombinedJacobian
 
 
+def makeLambdaMatrix(myMatrix):
+    '''makes a lambdafiable matrix'''
+
+    n, m = myMatrix.shape
+
+    myMatrix = sp.zeros(n,m)
+
+    for i in range(n):
+        for j in range(m):
+            myStr = str(myMatrix[i, j])+"_"+str(i)+"_"+str(j)
+
+            myMatrix[i, j] = sp.sympify(myStr)
+
+    return myMatrix
+
+
+def evaluate_jacobian(jacobian, ):
+    row = lambdify((x, y), Matrix((x, x + y)).T, modules='sympy')
+
+
+
 def main():
     c_d = 2.2
     a_m_reference = .01
@@ -58,14 +80,27 @@ def main():
     r_0 = 6978137
     H = 109300
 
-    CombinedJacobian = get_jacobian(c_d, a_m_reference, a_m_chaser, rho_0, r_0, H)
+    r_reference_val = 1.0
+    v_z_val = 1.0
+    h_reference_val = 1.0
+    theta_reference_val = 1.0
+    i_reference_val = 1.0
+    x_val = 1.0
+    y_val = 1.0
+    z_val = 1.0
+    p1_val = 1.0
+    p2_val = 1.0
+    p3_val = 1.0
 
-    for i in range(0, 11):
-        print("Row", i)
-        print(CombinedJacobian[i, 0], CombinedJacobian[i, 1], CombinedJacobian[i, 2], CombinedJacobian[i, 3],
-              CombinedJacobian[i, 4], CombinedJacobian[i, 5], CombinedJacobian[i, 6], CombinedJacobian[i, 7],
-              CombinedJacobian[i, 8], CombinedJacobian[i, 9], CombinedJacobian[i, 10])
-        print(" ")
+    CombinedJacobian = get_jacobian(c_d, a_m_reference, a_m_chaser, rho_0, r_0, H)
+    CombinedJacobian = Matrix(CombinedJacobian)
+
+    print(CombinedJacobian[6, 5])
+
+    row = lambdify((r_reference, v_z, h_reference, theta_reference, i_reference, x, y, z, p1, p2, p3),
+                   CombinedJacobian, modules='sympy')
+
+    print(row(r_reference_val, v_z_val, h_reference_val, theta_reference_val, i_reference_val, x_val, y_val, z_val, p1_val, p2_val, p3_val))
 
 
 if __name__ == "__main__":
