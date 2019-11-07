@@ -15,11 +15,8 @@ def chen_jing_eom_st(t, state, A, c_d, a_m_reference, a_m_chaser, r_0, rho_0, H)
 
     # <- r_reference, v_z, h_reference, theta_reference, i_reference, x_0, y_0, z_0, p1, p2, p3
     state_size = len(state)  # 1: implies x ODEs
-    dstate_dt = np.zeros((1, state_size))
     S_T = TargetingUtils.recompose(state, len(A[0]))
-    S_T_dt = np.matmul(A, S_T).tolist()
-    dstate_dt = state.flatten().append(S_T_dt.flatten())
-
+    S_T_dt = np.matmul(A(state[0], state[1], state[2], state[3], state[4], state[5], state[6], state[7], state[8], state[9], state[10]), S_T)
     wy = -state[2] / state[0]**2
     wz = k_j2 * np.sin(2*state[4]) * np.sin(state[3]) / (state[2] * state[0]**3)
 
@@ -51,37 +48,34 @@ def chen_jing_eom_st(t, state, A, c_d, a_m_reference, a_m_chaser, r_0, rho_0, H)
     dstate_dt[9] = w_bar*state[6] + zeta*np.cos(state[4]) - state[8]*wz + f_drag_chaser*v_chaser[1]  # d p2 / dt
     dstate_dt[10] = w_bar*(state[7] - state[0]) + zeta*np.sin(state[3])*np.sin(state[4]) + state[8]*wy + f_drag_chaser*v_chaser[2]  # d p3 / dt
 
-    dstate_dt = np.concatenate((S_T_dt, dstate_dt), axis=0)
+    dstate_dt = np.concatenate(([dstate_dt], S_T_dt), axis=0).flatten()
 
     return dstate_dt
 
-def chen_jing_targeter(state, nominal_formation, reference_orbit, time, step, end_seconds, thresh_min,
+def chen_jing_targeter(state_0, targeted_state, time, step, end_seconds, thresh_min,
                         thresh_max, target_status, c_d, a_m_reference, a_m_chaser, r_0, rho_0, H):
 
-    wy = -state[2] / state[0]**2
-    wz = k_j2 * np.sin(2*state[4]) * np.sin(state[3]) / (state[2] * state[0]**3)
-
-    r_chaser = np.linalg.norm([state[5], state[6], state[7] - state[0]])
-    z_chaser = state[5]*np.cos(state[3])*np.sin(state[4]) - state[6]*np.cos(state[4]) - (state[7] - state[0])*np.sin(state[4])*np.sin(state[3])
-    w_bar = -mu / r_chaser**3 - k_j2 / r_chaser**5 + 5*k_j2*z_chaser**2 / r_chaser**7
-    zeta = 2*k_j2*z_chaser / r_chaser**5
-
-    v_reference = np.linalg.norm([state[2]/state[0], 0, state[1]])
-    rho_reference = rho_0*np.exp(-(state[0] - r_0)/H)
-    f_drag_reference = - .5*c_d*a_m_reference*rho_reference
+    # compute constants for reuse in targeting at time t=0
+    # some variables are assigned from the initial state vector for clarity's sake
+    wy_0 = -state_0[2] / state_0[0] ** 2
+    wz_0 = k_j2 * np.sin(2 * state_0[4]) * np.sin(state_0[3]) / (state_0[2] * state_0[0] ** 3)
+    r_reference_0 = state_0[0], v_z_0 = state_0[1]
+    x_0 = state_0[5], y_0 = state_0[6], z_0 = state_0[7]
+    p1_0 = state_0[8], p2_0 = state_0[9], p3_0 = state_0[10]
+    v_0 = velocity_from_state(wy_0, wz_0, r_reference_0, v_z_0, x_0, y_0, z_0, p1_0, p2_0, p3_0)
 
     # Jacobian matrix
     A = CJJacobian.get_jacobian(c_d, a_m_reference, a_m_chaser, r_0, rho_0, H)
     # <- r_reference, v_z, h_reference, theta_reference, i_reference, x_0, y_0, z_0, p1, p2, p3
 
-    sc = sp.integrate.ode(lambda t, x: chen_jing_eom_st(t, state, A, c_d, a_m_reference, a_m_chaser, r_0, rho_0, H)).set_integrator('dopri5', atol=1e-10,
-                                                                                          rtol=1e-5)
-    sc.set_initial_value(state, time[0])
+    sc = sp.integrate.ode(lambda t, x: chen_jing_eom_st(t, state_0, A, c_d, a_m_reference, a_m_chaser, r_0, rho_0, H)).\
+        set_integrator('dopri5', atol=1e-10, rtol=1e-5)
+    sc.set_initial_value(state_0, time[0])
 
     results = [[], [], [], [], [], []]
     t = []
 
-    dv = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+    dp = [0.0, 0.0, 0.0]
 
     stable = True
     current_time = 0
@@ -98,16 +92,22 @@ def chen_jing_targeter(state, nominal_formation, reference_orbit, time, step, en
         results[4].append(sc.y[9])
         results[5].append(sc.y[10])
         if np.sqrt((sc.y[5]**2 + sc.y[6]**2 + sc.y[7]**2)) > thresh_max:  # do targeting!
-            # S_T_vv_inv = np.linalg.inv(TargetingUtils.get_S_T_vv(sc.y))
-            # S_T_rv_inv = np.linalg.inv(TargetingUtils.get_S_T_rv(sc.y))
-            # # determine a maneuver to put the spacecraft back on track :)
-            # dv1 = np.matmul(S_T_rv_inv, np.asarray([nominal_formation[0], nominal_formation[1], nominal_formation[2]]))
-            # dv2 = np.matmul(S_T_vv_inv, np.asarray([nominal_formation[3], nominal_formation[4], nominal_formation[5]]))
-            # dv = [0, 0, 0, dv1[0, 0], dv1[0, 1], dv1[0, 2]]
+
+            # compute inverse of the state transition matrix
+            S_T_inv = np.linalg.inv(TargetingUtils.recompose(sc.y, 11))
+            # substitute ideal positions at time = k
+            modified_state_time_k = np.asarray([sc.y[0], sc.y[1], sc.y[2], sc.y[3], sc.y[4],
+                           targeted_state[0], targeted_state[1], targeted_state[2],
+                           sc.y[8], sc.y[9], sc.y[10]])
+            # compute altered state at time = 0
+            modified_state_time_0 = np.matmul(S_T_inv, modified_state_time_k)
+            # select out the values for the canonical variables we're interested in changing
+            dp = [modified_state_time_0[8], modified_state_time_0[9], modified_state_time_0[10]]
+
             target_status = False
             stable = False
 
-    return dv, results, current_time, target_status
+    return dp, results, current_time, target_status
 
 # ############################################################################ #
 
@@ -238,4 +238,9 @@ def j2_drag_ecc_propagator(state_0, time, number_of_points, c_d, a_m_reference, 
 
         return magnitudes
 
-    # return time_vector, [result[:, 5], result[:, 6], result[:, 7]]
+
+def velocity_from_state(wy, wz, r_reference, v_z, x, y, z, p1, p2, p3):
+    vx = p1 + y*wz - (z - r_reference)*wy
+    vy = p2 - x*wz
+    vz = p3 - v_z + x*wy
+    return [vx, vy, vz]

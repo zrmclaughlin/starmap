@@ -1,5 +1,5 @@
 from sympy import *
-import sympy as sp
+import numpy as np
 # State Variables
 r_reference, v_z, h_reference, theta_reference, i_reference, x, y, z, p1, p2, p3 = \
     symbols('r_reference v_z h_reference theta_reference i_reference x y z p1 p2 p3', real=True)
@@ -48,60 +48,46 @@ def get_jacobian(c_d, a_m_reference, a_m_chaser, r_0, rho_0, H):
     CombinedJacobian = Matrix([dr_dt, dv_z_dt, dh_reference_dt, dtheta_reference_dt, di_reference_dt, dx_dt, dy_dt, dz_dt, dp1_dt, dp2_dt, dp3_dt]).\
                         jacobian([r_reference, v_z, h_reference, theta_reference, i_reference, x, y, z, p1, p2, p3])
 
-    return CombinedJacobian
-
-
-def makeLambdaMatrix(myMatrix):
-    '''makes a lambdafiable matrix'''
-
-    n, m = myMatrix.shape
-
-    myMatrix = sp.zeros(n,m)
-
-    for i in range(n):
-        for j in range(m):
-            myStr = str(myMatrix[i, j])+"_"+str(i)+"_"+str(j)
-
-            myMatrix[i, j] = sp.sympify(myStr)
-
-    return myMatrix
-
-
-def evaluate_jacobian(jacobian, ):
-    row = lambdify((x, y), Matrix((x, x + y)).T, modules='sympy')
-
+    return lambdify((r_reference, v_z, h_reference, theta_reference, i_reference, x, y, z, p1, p2, p3),
+                   CombinedJacobian, modules='sympy')
 
 
 def main():
-    c_d = 2.2
-    a_m_reference = .01
-    a_m_chaser = .007
-    rho_0 = 1.438E-12
-    r_0 = 6978137
-    H = 109300
+    # c_d = 2.2
+    # a_m_reference = .01
+    # a_m_chaser = .007
+    # rho_0 = 1.438E-12
+    # r_0 = 6978137
+    # H = 109300
+    #
+    # r_reference_val = 1.0
+    # v_z_val = 1.0
+    # h_reference_val = 1.0
+    # theta_reference_val = 1.0
+    # i_reference_val = 1.0
+    # x_val = 1.0
+    # y_val = 1.0
+    # z_val = 1.0
+    # p1_val = 1.0
+    # p2_val = 1.0
+    # p3_val = 1.0
+    #
+    # CombinedJacobian = get_jacobian(c_d, a_m_reference, a_m_chaser, rho_0, r_0, H)
+    # CombinedJacobian = Matrix(CombinedJacobian)
+    #
+    # print(CombinedJacobian[6, 5])
+    #
+    # row = lambdify((r_reference, v_z, h_reference, theta_reference, i_reference, x, y, z, p1, p2, p3),
+    #                CombinedJacobian, modules='sympy')
+    #
+    # print(row(r_reference_val, v_z_val, h_reference_val, theta_reference_val, i_reference_val, x_val, y_val, z_val, p1_val, p2_val, p3_val))
 
-    r_reference_val = 1.0
-    v_z_val = 1.0
-    h_reference_val = 1.0
-    theta_reference_val = 1.0
-    i_reference_val = 1.0
-    x_val = 1.0
-    y_val = 1.0
-    z_val = 1.0
-    p1_val = 1.0
-    p2_val = 1.0
-    p3_val = 1.0
-
-    CombinedJacobian = get_jacobian(c_d, a_m_reference, a_m_chaser, rho_0, r_0, H)
-    CombinedJacobian = Matrix(CombinedJacobian)
-
-    print(CombinedJacobian[6, 5])
-
-    row = lambdify((r_reference, v_z, h_reference, theta_reference, i_reference, x, y, z, p1, p2, p3),
-                   CombinedJacobian, modules='sympy')
-
-    print(row(r_reference_val, v_z_val, h_reference_val, theta_reference_val, i_reference_val, x_val, y_val, z_val, p1_val, p2_val, p3_val))
-
+    # sum moar testeeng
+    x = np.identity(3)
+    y = np.asarray([[1, 1, 1]])
+    print(x, y)
+    dstate_dt = np.concatenate((y, x), axis=0)
+    print(dstate_dt)
 
 if __name__ == "__main__":
     main()
