@@ -14,7 +14,6 @@ k_j2 = 3*j2*mu*r_e**2 / 2
 def chen_jing_eom_st(t, state, A, c_d, a_m_reference, a_m_chaser, r_0, rho_0, H):
 
     # <- r_reference, v_z, h_reference, theta_reference, i_reference, x_0, y_0, z_0, p1, p2, p3
-    state_size = len(state)  # 1: implies x ODEs
     S_T = TargetingUtils.recompose(state, len(A[0]))
     S_T_dt = np.matmul(A(state[0], state[1], state[2], state[3], state[4], state[5], state[6], state[7], state[8], state[9], state[10]), S_T)
     wy = -state[2] / state[0]**2
@@ -195,7 +194,7 @@ def j2_drag_ecc_propagator(state_0, time, number_of_points, c_d, a_m_reference, 
             sc.integrate(sc.t + step)
             t[step_count] = sc.t
             step_count += 1
-            if (np.sqrt(sc.y[5] ** 2 + sc.y[6] ** 2 + sc.y[7] ** 2) > thresh_max) | \
+            if (np.sqrt(sc.y[5] ** 2 + sc.y[6] ** 2 + sc.y[7] ** 2) > thresh_max) or \
                     (np.sqrt(sc.y[5] ** 2 + sc.y[6] ** 2 + sc.y[7] ** 2) < thresh_min):
                 result_out_of_range[0].append(sc.y[5])
                 result_out_of_range[1].append(sc.y[6])

@@ -14,7 +14,7 @@ mu = 3.986004415E14
 def sedwick_eom_st(t, delta_state, A, n, c, l, q, phi):
     state_size = len(delta_state)  # 1: implies x ODEs
     dx_dt = np.zeros((1, state_size))
-    S_T = TargetingUtils.recompose(delta_state)
+    S_T = TargetingUtils.recompose(delta_state, len(A[0]))
     S_T_dt = np.matmul(A, S_T).tolist()
 
     dx_dt[0][0] = delta_state[3]
@@ -110,8 +110,8 @@ def evaluate_j2_constants(reference_orbit, delta_state_0):
 
 def j2_sedwick_propagator(delta_state_0, reference_orbit, time, step, type, thresh_min, thresh_max, target_status):
     n, c, l, q, phi = evaluate_j2_constants(reference_orbit, delta_state_0)
-    sc = sp.integrate.ode(lambda t, x: sedwick_eom(t, x, n, c, l, q, phi)).set_integrator('dopri5', atol=1e-12,
-                                                                                          rtol=1e-12)
+    sc = sp.integrate.ode(lambda t, x: sedwick_eom(t, x, n, c, l, q, phi)).set_integrator('dopri5', atol=1e-5,
+                                                                                          rtol=1e-3)
     sc.set_initial_value(delta_state_0, time[0])
     t = np.zeros((len(time), len(delta_state_0)))
     result = np.zeros((len(time), len(delta_state_0)))
@@ -194,7 +194,7 @@ def j2_sedwick_propagator(delta_state_0, reference_orbit, time, step, type, thre
         return magnitudes
 
 
-def j2_sedwick_targeter(delta_state_0, nominal_formation, reference_orbit, time, step, end_seconds, thresh_min,
+def j2_sedwick_targeter(delta_state_0, targeted_state, reference_orbit, time, step, end_seconds, thresh_min,
                         thresh_max, target_status):
 
     n, c, l, q, phi = evaluate_j2_constants(reference_orbit, delta_state_0)
@@ -216,7 +216,7 @@ def j2_sedwick_targeter(delta_state_0, nominal_formation, reference_orbit, time,
     results = [[], [], [], [], [], []]
     t = []
 
-    dv = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+    d_v = [0.0, 0.0, 0.0]
 
     stable = True
     current_time = 0
@@ -233,15 +233,21 @@ def j2_sedwick_targeter(delta_state_0, nominal_formation, reference_orbit, time,
         results[4].append(sc.y[4])
         results[5].append(sc.y[5])
         if np.sqrt((sc.y[0]**2 + sc.y[1]**2 + sc.y[2]**2)) > thresh_max:  # do targeting!
-            S_T_vv_inv = np.linalg.inv(TargetingUtils.get_S_T_vv(sc.y))
-            S_T_rv_inv = np.linalg.inv(TargetingUtils.get_S_T_rv(sc.y))
             # determine a maneuver to put the spacecraft back on track :)
-            dv1 = np.matmul(S_T_rv_inv, np.asarray([nominal_formation[0], nominal_formation[1], nominal_formation[2]]))
-            dv2 = np.matmul(S_T_vv_inv, np.asarray([nominal_formation[3], nominal_formation[4], nominal_formation[5]]))
-            dv = [0, 0, 0, dv1[0, 0], dv1[0, 1], dv1[0, 2]]
+            # compute inverse of the state transition matrix
+            S_T_inv = np.linalg.inv(TargetingUtils.recompose(sc.y, 6))
+            # substitute ideal positions at time = k
+            modified_state_time_k = np.asarray([targeted_state[0], targeted_state[1], targeted_state[2], sc.y[3], sc.y[4], sc.y[5]])
+            # compute altered state at time = 0
+            modified_state_time_0 = np.matmul(S_T_inv, modified_state_time_k)
+            # select out the values for the canonical variables we're interested in changing
+            d_v = [modified_state_time_0[3] + delta_state_0[3],
+                   modified_state_time_0[4] + delta_state_0[4],
+                   modified_state_time_0[5] + delta_state_0[5]]
+
             target_status = False
             stable = False
 
-    return dv, results, current_time, target_status
+    return d_v, results, current_time, target_status
 
 # ############################################################################ #

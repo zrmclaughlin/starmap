@@ -8,6 +8,7 @@ from PyQt5.QtWidgets import QMainWindow, QApplication, QPushButton, QWidget, QAc
 from PyQt5.QtCore import pyqtSlot, Qt
 from PyQt5 import QtCore, QtGui, QtWidgets
 import TargetingUtils
+from decimal import Decimal
 
 
 # ############################## TARGETED TRAJECTORY GENERATOR ############################## #
@@ -52,17 +53,8 @@ class Targeter(QWidget):
         self.populate_targeted_trajectory()
 
     def populate_targeted_trajectory(self):
-
-        targeted_state = [  # Initial relative state
-            self.state[0], self.state[1], self.state[2], self.state[3], self.state[4], self.state[5],
-            # State Transition Matrix (I, 6x6)
-            # .2, 0, 0.1, .1, 0, .5,
-            1.0, 0, 0, 0, 0, 0,
-            0, 1.0, 0, 0, 0, 0,
-            0, 0, 1.0, 0, 0, 0,
-            0, 0, 0, 1.0, 0, 0,
-            0, 0, 0, 0, 1.0, 0,
-            0, 0, 0, 0, 0, 1.0]
+        # Initial relative state
+        targeted_state = np.concatenate(([self.state], np.eye(len(self.state))), axis=0).flatten()
 
         current_time = 0
         end_times = []
@@ -71,15 +63,15 @@ class Targeter(QWidget):
         trajectory_history = [[], [], [], [], [], []]
         targeted_state_history = []
         while current_time < self.end_seconds:
-            dv, results, current_time, target_status = J2RelativeMotion.j2_sedwick_targeter(targeted_state, self.desired_state,
-                                                                                              self.reference_orbit,
-                                                                                              self.times,
-                                                                                              step, self.end_seconds,
-                                                                                              self.thresh_min,
-                                                                                              self.thresh_max, False)
+            dv, results, current_time, target_status = J2RelativeMotion.j2_sedwick_targeter(targeted_state,
+                                                                                            self.desired_state,
+                                                                                            self.reference_orbit,
+                                                                                            self.times,
+                                                                                            step, self.end_seconds,
+                                                                                            self.thresh_min,
+                                                                                            self.thresh_max, False)
             end_times.append(current_time)
             targeted_state_history.append(targeted_state)
-            # print("Time until out-of-bounds: ", current_time)
             current_time = 0
             # let's now archive the propagation we've completed
             trajectory_history[0].append(results[0])
@@ -97,9 +89,9 @@ class Targeter(QWidget):
                 break
 
             # using the dv we've completed, we can now alter the initial state and try again
-            targeted_state[3] = dv[3]
-            targeted_state[4] = dv[4]
-            targeted_state[5] = dv[5]
+            targeted_state[3] = targeted_state[3] - dv[0]
+            targeted_state[4] = targeted_state[4] - dv[1]
+            targeted_state[5] = targeted_state[5] - dv[2]
 
         closest_time = np.amax(end_times)
         closest_time_loc = np.where(np.asarray(end_times) == np.amax(np.asarray(end_times)))
@@ -108,14 +100,14 @@ class Targeter(QWidget):
         self.targeted_state = [targeted_state_history[best_run][0], targeted_state_history[best_run][1], targeted_state_history[best_run][2],
                                targeted_state_history[best_run][3], targeted_state_history[best_run][4], targeted_state_history[best_run][5]]
 
-        self.state_transition = TargetingUtils.recompose(targeted_state_history[best_run])
+        self.state_transition = TargetingUtils.recompose(targeted_state_history[best_run], len(self.state))
 
         print(trajectory_history[0][best_run][0], trajectory_history[1][best_run][0], trajectory_history[2][best_run][0],
               trajectory_history[3][best_run][0], trajectory_history[4][best_run][0], trajectory_history[5][best_run][0])
 
         self.plot_trajectory_targeted.update_graph([[trajectory_history[0][best_run], trajectory_history[1][best_run], trajectory_history[2][best_run]], ],
                                                    "Targeted Motion for " + str(closest_time)[:8] + " seconds | Trajectory: " +
-                                                   str(self.targeted_state[0])[:7] + ", " + str(self.targeted_state[1])[:7] + ", " +
-                                                   str(self.targeted_state[2])[:7] + ", " + str(self.targeted_state[3])[:7] + ", " +
-                                                   str(self.targeted_state[4])[:7] + ", " + str(self.targeted_state[5])[:7] + ", ",
+                                                   '%.2E' % Decimal(str(self.targeted_state[0])) + ", " + '%.2E' % Decimal(str(self.targeted_state[1])) + ", " +
+                                                   '%.2E' % Decimal(str(self.targeted_state[2])) + ", " + '%.2E' % Decimal(str(self.targeted_state[3])) + ", " +
+                                                   '%.2E' % Decimal(str(self.targeted_state[4])) + ", " + '%.2E' % Decimal(str(self.targeted_state[5])) + ", ",
                                                    ["Radial (m)", "In-Track (m)", "Cross-Track (m)"])
