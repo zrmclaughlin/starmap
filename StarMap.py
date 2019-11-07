@@ -12,10 +12,12 @@ import GraphWidgets
 import random
 import Targeter
 
+GLOBAL_BACKEND = "STARMAP"
+
 
 class App(QMainWindow):
 
-    def __init__(self):
+    def __init__(self, cmnd_arg):
         super().__init__()
         self.title = 'STARMAP v0.1'
         self.left = 0
@@ -27,6 +29,16 @@ class App(QMainWindow):
 
         self.table_widget = StarMapGUI(self)
         self.setCentralWidget(self.table_widget)
+
+        self.backend = "J2"
+
+        if len(cmnd_arg) > 1:
+            if cmnd_arg[1] == "-j2":
+                self.backend = "J2"
+            elif cmnd_arg[1] == "-combined":
+                self.backend = "COMBINED"
+
+        GLOBAL_BACKEND = self.backend
 
         self.show()
 
@@ -85,9 +97,6 @@ class StarMapGUI(QWidget):
         self.targeted_x = QLineEdit(str(nominal_formation[0])[:7])
         self.targeted_y = QLineEdit(str(nominal_formation[1])[:7])
         self.targeted_z = QLineEdit(str(nominal_formation[2])[:7])
-        self.targeted_xd = QLineEdit(str(nominal_formation[3])[:7])
-        self.targeted_yd = QLineEdit(str(nominal_formation[4])[:7])
-        self.targeted_zd = QLineEdit(str(nominal_formation[5])[:7])
 
         self.propagation_time = QLineEdit("10000")
         self.values_record = QLineEdit("1000")
@@ -245,9 +254,6 @@ class StarMapGUI(QWidget):
         ic_layout.addWidget(self.targeted_x, 16, 0)
         ic_layout.addWidget(self.targeted_y, 16, 1)
         ic_layout.addWidget(self.targeted_z, 16, 2)
-        ic_layout.addWidget(self.targeted_xd, 16, 3)
-        ic_layout.addWidget(self.targeted_yd, 16, 4)
-        ic_layout.addWidget(self.targeted_zd, 16, 5)
 
         self.reforbit_frame.setLayout(ic_layout)
 
@@ -280,8 +286,7 @@ class StarMapGUI(QWidget):
             self.heatmap_y_axis = 2
 
     def get_target(self):
-        return [float(self.targeted_x.text()), float(self.targeted_y.text()), float(self.targeted_z.text()),
-                float(self.targeted_xd.text()), float(self.targeted_yd.text()), float(self.targeted_zd.text())]
+        return [float(self.targeted_x.text()), float(self.targeted_y.text()), float(self.targeted_z.text())]
 
     def get_initial_info(self):
 
@@ -356,5 +361,5 @@ class StarMapGUI(QWidget):
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
-    INIT_STARMAP = App()
+    INIT_STARMAP = App(sys.argv)
     sys.exit(app.exec_())

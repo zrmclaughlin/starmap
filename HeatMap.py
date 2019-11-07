@@ -1,6 +1,8 @@
 import OrbitalElements
 import J2RelativeMotion
 import GraphWidgets
+import StarMap
+import CombinedRelativeMotion
 import numpy as np
 from PyQt5.QtWidgets import QMainWindow, QApplication, QPushButton, QWidget, QAction, \
     QTabWidget, QVBoxLayout, QLineEdit, QHBoxLayout, QLabel, QGridLayout, QFrame, QComboBox
@@ -115,9 +117,18 @@ class HeatMap(QWidget):
                 mean_state[self.x_axis] = x_values_list[i]
                 mean_state[self.y_axis] = y_values_list[j]
 
-                success_level[i][j] = J2RelativeMotion.j2_sedwick_propagator(mean_state, reference_orbit, times, step,
-                                                                             1, threshold_min, threshold_max, False)\
-                                                                             / recorded_times * 100
+                if StarMap.GLOBAL_BACKEND == "COMBINED":
+                    success_level[i][j] = CombinedRelativeMotion.j2_drag_ecc_propagator(mean_state, reference_orbit, times, step,
+                                                                                 1, threshold_min, threshold_max, False)\
+                                                                                 / recorded_times * 100
+                elif StarMap.GLOBAL_BACKEND == "J2":
+                    success_level[i][j] = J2RelativeMotion.j2_sedwick_propagator(mean_state, reference_orbit, times, step,
+                                                                                 1, threshold_min, threshold_max, False)\
+                                                                                 / recorded_times * 100
+                else:
+                    success_level[i][j] = J2RelativeMotion.j2_sedwick_propagator(mean_state, reference_orbit, times, step,
+                                                                                 1, threshold_min, threshold_max, False)\
+                                                                                 / recorded_times * 100
 
         map_x, map_y = np.array(np.meshgrid(x_values_list, y_values_list))
         max_x, max_y = np.where(np.asarray(success_level) == np.asarray(success_level).max())
