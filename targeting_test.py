@@ -84,7 +84,7 @@ def j2_sedwick_propagator(delta_state_0, i_sat1, time, step, targeted_state):
     target_status = True
     stable = True
     d_v = [0, 0, 0]
-    while sc.successful():
+    while sc.successful() and stable:
         sc.integrate(sc.t + step)
         # Store the results to plot later
         t[step_count] = sc.t
@@ -125,25 +125,25 @@ def cw_eom(t, delta_state, a_target, mu, A):  # semi-major of target satellite
     return d_delta_state_dt
 
 
-def cw_propagator(time, delta_state_0, step, targeted_state):
+def cw_propagator(time, delta_state_0, step, targeted_state, target):
     A = jcb.first_order_jacobian(a_reference)
     sc = sp.integrate.ode(lambda t, x: cw_eom(t, x, a_target=a_reference, mu=mu, A=A)).set_integrator('dopri5', atol=1e-12, rtol=1e-12)
     sc.set_initial_value(delta_state_0, time[0])
-    t = np.zeros((len(time)))
-    result = np.zeros((len(time), len(delta_state_0)))
+    t = np.zeros((len(time)+1))
+    result = np.zeros((len(time)+1, len(delta_state_0)))
     t[0] = time[0]
     result[0][:] = delta_state_0
     step_count = 1
     target_status = True
     stable = True
     d_v = [0, 0, 0]
-    while sc.successful() and step_count < len(t):
+    while sc.successful() and stable:
         sc.integrate(sc.t + step)
         # Store the results to plot later
         t[step_count] = sc.t
         result[step_count][:] = sc.y
         step_count += 1
-        if step_count > len(t):
+        if step_count > len(t)-1 and target:
         # if np.sqrt((sc.y[0]**2 + sc.y[1]**2 + sc.y[2]**2)) > thresh_max:  # do targeting!
             # determine a maneuver to put the spacecraft back on track :)
             # compute inverse of the state transition matrix
@@ -159,6 +159,8 @@ def cw_propagator(time, delta_state_0, step, targeted_state):
 
             target_status = False
             stable = False
+        elif step_count > len(t)-1 and not target:
+            stable = False
 
     return t, result, target_status, stable, d_v
 
@@ -166,7 +168,7 @@ def cw_propagator(time, delta_state_0, step, targeted_state):
 def main():
     # Sedwick testing
     delta_state_0 = [10, 100, 10, 1, 2, 3]
-    times = np.linspace(0, 10000, 1000)
+    times = np.linspace(0, 1000, 1000)
     inc_reference = 30 * np.pi / 180
     step = times[1] - times[0]
 
@@ -181,9 +183,14 @@ def main():
 
     # j2_t, j2_results, target_status, stable, d_v = j2_sedwick_propagator(targeted_state, inc_reference, times, step, nominal_position)
 
-    cw_t, cw_results, target_status, stable, d_v = cw_propagator(times, targeted_state, step, nominal_position)
+    cw_t, cw_results, target_status, stable, d_v = cw_propagator(times, targeted_state, step, nominal_position, True)
 
-    print("")
+    print(d_v)
+    delta_state_0 = [10, 100, 10, 1-d_v[0], 2-d_v[1], 3-d_v[2]]
+
+    cw_t, cw_results, target_status, stable, d_v = cw_propagator(times, targeted_state, step, nominal_position, False)
+
+    print(cw_results[-1])
 
 
 if __name__ == "__main__":
