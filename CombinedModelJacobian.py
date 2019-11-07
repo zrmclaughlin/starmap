@@ -1,6 +1,6 @@
 from sympy import *
 import numpy as np
-# State Variables
+# State Variables for combination
 r_reference, v_z, h_reference, theta_reference, i_reference, x, y, z, p1, p2, p3 = \
     symbols('r_reference v_z h_reference theta_reference i_reference x y z p1 p2 p3', real=True)
 # Variables Dependent on State Variables
@@ -9,6 +9,10 @@ wy, wz, r_chaser, z_chaser, w_bar, zeta, v_reference, rho_reference, f_drag_refe
 # State Variable Derivative Functions
 dr_dt, dv_z_dt, dh_reference_dt, dtheta_reference_dt, di_reference_dt, dx_dt, dy_dt, dz_dt, dp1_dt, dp2_dt, dp3_dt = \
     symbols('dr_dt dv_z_dt dh_reference_dt dtheta_reference_dt di_reference_dt dx_dt dy_dt dz_dt dp1_dt dp2_dt dp3_dt', real=True)
+
+# state variables for first order
+d_dx_dt_dt, d_dy_dt_dt, d_dz_dt_dt, d_x_dt, d_y_dt, d_z_dt = \
+    symbols('d_dx_dt_dt d_dy_dt_dt d_dz_dt_dt d_x_dt d_y_dt d_z_dt', real=True)
 
 r_e = 6378136.3
 j2 = 1.082E-3
@@ -50,6 +54,22 @@ def get_jacobian(c_d, a_m_reference, a_m_chaser, r_0, rho_0, H):
 
     return lambdify((r_reference, v_z, h_reference, theta_reference, i_reference, x, y, z, p1, p2, p3),
                    CombinedJacobian, modules='sympy')
+
+
+def first_order_jacobian(a_target):
+    n = np.sqrt(mu/a_target**3)
+    d_x_dt = dx_dt
+    d_y_dt = dy_dt
+    d_z_dt = dz_dt
+    d_dx_dt_dt = 3*n**2*x + 2*n*dy_dt
+    d_dy_dt_dt = - 2*n*dx_dt
+    d_dz_dt_dt = - n**2*z
+
+    FirstOrderJacobian = Matrix([d_x_dt, d_y_dt, d_z_dt, d_dx_dt_dt, d_dy_dt_dt, d_dz_dt_dt]).\
+                        jacobian([x, y, z, dx_dt, dy_dt, dz_dt])
+
+    return lambdify((x, y, z, dx_dt, dy_dt, dz_dt),
+                   FirstOrderJacobian, modules='sympy')
 
 
 def main():

@@ -47,7 +47,6 @@ def chen_jing_eom_st(t, state, A, c_d, a_m_reference, a_m_chaser, r_0, rho_0, H)
     dstate_dt[9] = w_bar*state[6] + zeta*np.cos(state[4]) - state[8]*wz + f_drag_chaser*v_chaser[1]  # d p2 / dt
     dstate_dt[10] = w_bar*(state[7] - state[0]) + zeta*np.sin(state[3])*np.sin(state[4]) + state[8]*wy + f_drag_chaser*v_chaser[2]  # d p3 / dt
 
-    dstate_dt = np.concatenate(([dstate_dt], S_T_dt), axis=0).flatten()
 
     return dstate_dt
 

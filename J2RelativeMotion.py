@@ -13,54 +13,20 @@ mu = 3.986004415E14
 
 def sedwick_eom_st(t, delta_state, A, n, c, l, q, phi):
     state_size = len(delta_state)  # 1: implies x ODEs
-    dx_dt = np.zeros((1, state_size))
+    d_delta_state_dt = np.zeros((1, state_size))
     S_T = TargetingUtils.recompose(delta_state, len(A[0]))
     S_T_dt = np.matmul(A, S_T).tolist()
 
-    dx_dt[0][0] = delta_state[3]
-    dx_dt[0][1] = delta_state[4]
-    dx_dt[0][2] = delta_state[5]
-    dx_dt[0][3] = 2 * n * c * delta_state[4] + (5 * c ** 2 - 2) * n ** 2 * delta_state[0]
-    dx_dt[0][4] = -2 * n * c * delta_state[3]
-    dx_dt[0][5] = -q ** 2 * delta_state[2] + 2 * l * q * np.cos(q * t + phi)
+    d_delta_state_dt[0][0] = delta_state[3]
+    d_delta_state_dt[0][1] = delta_state[4]
+    d_delta_state_dt[0][2] = delta_state[5]
+    d_delta_state_dt[0][3] = 2 * n * c * delta_state[4] + (5 * c ** 2 - 2) * n ** 2 * delta_state[0]
+    d_delta_state_dt[0][4] = -2 * n * c * delta_state[3]
+    d_delta_state_dt[0][5] = -q ** 2 * delta_state[2] + 2 * l * q * np.cos(q * t + phi)
 
-    dx_dt[0][6] = S_T_dt[0][0]
-    dx_dt[0][7] = S_T_dt[0][1]
-    dx_dt[0][8] = S_T_dt[0][2]
-    dx_dt[0][9] = S_T_dt[0][3]
-    dx_dt[0][10] = S_T_dt[0][4]
-    dx_dt[0][11] = S_T_dt[0][5]
-    dx_dt[0][12] = S_T_dt[1][0]
-    dx_dt[0][13] = S_T_dt[1][1]
-    dx_dt[0][14] = S_T_dt[1][2]
-    dx_dt[0][15] = S_T_dt[1][3]
-    dx_dt[0][16] = S_T_dt[1][4]
-    dx_dt[0][17] = S_T_dt[1][5]
-    dx_dt[0][18] = S_T_dt[2][0]
-    dx_dt[0][19] = S_T_dt[2][1]
-    dx_dt[0][20] = S_T_dt[2][2]
-    dx_dt[0][21] = S_T_dt[2][3]
-    dx_dt[0][22] = S_T_dt[2][4]
-    dx_dt[0][23] = S_T_dt[2][5]
-    dx_dt[0][24] = S_T_dt[3][0]
-    dx_dt[0][25] = S_T_dt[3][1]
-    dx_dt[0][26] = S_T_dt[3][2]
-    dx_dt[0][27] = S_T_dt[3][3]
-    dx_dt[0][28] = S_T_dt[3][4]
-    dx_dt[0][29] = S_T_dt[3][5]
-    dx_dt[0][30] = S_T_dt[4][0]
-    dx_dt[0][31] = S_T_dt[4][1]
-    dx_dt[0][32] = S_T_dt[4][2]
-    dx_dt[0][33] = S_T_dt[4][3]
-    dx_dt[0][34] = S_T_dt[4][4]
-    dx_dt[0][35] = S_T_dt[4][5]
-    dx_dt[0][36] = S_T_dt[5][0]
-    dx_dt[0][37] = S_T_dt[5][1]
-    dx_dt[0][38] = S_T_dt[5][2]
-    dx_dt[0][39] = S_T_dt[5][3]
-    dx_dt[0][40] = S_T_dt[5][4]
-    dx_dt[0][41] = S_T_dt[5][5]
-    return dx_dt
+    d_delta_state_dt = np.concatenate(([d_delta_state_dt], S_T_dt), axis=0).flatten()
+
+    return d_delta_state_dt
 
 # ############################## SEDWICK J2 REOM ############################## #
 
