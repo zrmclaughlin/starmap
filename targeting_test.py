@@ -153,9 +153,12 @@ def cw_propagator(time, delta_state_0, step, targeted_state, target):
             # compute altered state at time = 0
             modified_state_time_0 = np.matmul(S_T_inv, modified_state_time_k)
             # select out the values for the canonical variables we're interested in changing
-            d_v = [modified_state_time_0[3] + delta_state_0[3],
-                   modified_state_time_0[4] + delta_state_0[4],
-                   modified_state_time_0[5] + delta_state_0[5]]
+            # d_v = [modified_state_time_0[3] - delta_state_0[3],
+            #        modified_state_time_0[4] - delta_state_0[4],
+            #        modified_state_time_0[5] - delta_state_0[5]]
+            d_v = [modified_state_time_0[3],
+                   modified_state_time_0[4],
+                   modified_state_time_0[5]]
 
             target_status = False
             stable = False
@@ -172,7 +175,7 @@ def main():
     inc_reference = 30 * np.pi / 180
     step = times[1] - times[0]
 
-    nominal_position = [100, 100, 100]
+    nominal_position = [1000, 1000, 100]
 
     targeted_state = np.concatenate(([delta_state_0], np.eye(len(delta_state_0))), axis=0).flatten()
 
@@ -183,14 +186,26 @@ def main():
 
     # j2_t, j2_results, target_status, stable, d_v = j2_sedwick_propagator(targeted_state, inc_reference, times, step, nominal_position)
 
-    cw_t, cw_results, target_status, stable, d_v = cw_propagator(times, targeted_state, step, nominal_position, True)
-
-    print(d_v)
-    delta_state_0 = [10, 100, 10, 1-d_v[0], 2-d_v[1], 3-d_v[2]]
+    for i in range(7):
+        cw_t, cw_results, target_status, stable, d_v = cw_propagator(times, targeted_state, step, nominal_position, True)
+        print("loop", i, cw_results[-1][0], cw_results[-1][1], cw_results[-1][2])
+        print(d_v)
+        delta_state_0 = [10, 100, 10, d_v[0], d_v[1], d_v[2]]
+        targeted_state = np.concatenate(([delta_state_0], np.eye(len(delta_state_0))), axis=0).flatten()
 
     cw_t, cw_results, target_status, stable, d_v = cw_propagator(times, targeted_state, step, nominal_position, False)
 
-    print(cw_results[-1])
+    print(cw_results[-1][0], cw_results[-1][1], cw_results[-1][2])
+
+    ax = plt.axes(projection='3d')
+    ax.set_xlabel("Radial")
+    ax.set_ylabel("In-Track")
+    ax.set_zlabel("Cross-Track")
+    ax.set_title("Relative Motion")
+
+    # Data for a three-dimensional line
+    ax.plot3D(cw_results[-1][0], cw_results[-1][1], cw_results[-1][2])
+    plt.show()
 
 
 if __name__ == "__main__":
