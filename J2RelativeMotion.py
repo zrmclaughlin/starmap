@@ -200,14 +200,9 @@ def j2_sedwick_targeter(delta_state_0, targeted_state, reference_orbit, time, st
         results[5].append(sc.y[5])
         if sc.t > end_seconds:
         # if np.sqrt((sc.y[0]**2 + sc.y[1]**2 + sc.y[2]**2)) > thresh_max:  # do targeting!
-            # determine a maneuver to put the spacecraft back on track :)
-            # compute inverse of the state transition matrix
             S_T_inv = np.linalg.inv(TargetingUtils.recompose(sc.y, 6))
-            # substitute ideal positions at time = k
             modified_state_time_k = np.asarray([targeted_state[0], targeted_state[1], targeted_state[2], sc.y[3], sc.y[4], sc.y[5]])
-            # compute altered state at time = 0
             modified_state_time_0 = np.matmul(S_T_inv, modified_state_time_k)
-            # select out the values for the canonical variables we're interested in changing
             d_v = [modified_state_time_0[3] + delta_state_0[3],
                    modified_state_time_0[4] + delta_state_0[4],
                    modified_state_time_0[5] + delta_state_0[5]]

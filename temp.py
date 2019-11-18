@@ -15,7 +15,7 @@ print(b)
 b = a[:5, :5]
 print(b)
 
-n1, n2 = np.arange(5, 10), np.arange(5, 10)
+n1, n2 = np.arange(0, 10), np.arange(7, 10)
 # What you want, but probably confusing at first. (Also, makes a copy.)
 # np.meshgrid and np.ix_ are basically equivalent to this.
 b = a[n1[:,None], n2[None,:]]

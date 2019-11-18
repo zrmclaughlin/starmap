@@ -16,6 +16,11 @@ import OrbitalElements
 import TargetingUtils
 import CombinedModelJacobian as jcb
 
+# Where:
+# radial = results[:, 0]
+# in_track = results[:, 1]
+# z = results[:, 2]
+
 r_e = 6378136.3
 j2 = 1.082E-3
 mu = 3.986004415E14
@@ -92,14 +97,9 @@ def j2_sedwick_propagator(delta_state_0, i_sat1, time, step, targeted_state):
         step_count += 1
         if step_count > len(t):
         # if np.sqrt((sc.y[0]**2 + sc.y[1]**2 + sc.y[2]**2)) > thresh_max:  # do targeting!
-            # determine a maneuver to put the spacecraft back on track :)
-            # compute inverse of the state transition matrix
             S_T_inv = np.linalg.inv(TargetingUtils.recompose(sc.y, 6))
-            # substitute ideal positions at time = k
             modified_state_time_k = np.asarray([targeted_state[0], targeted_state[1], targeted_state[2], sc.y[3], sc.y[4], sc.y[5]])
-            # compute altered state at time = 0
             modified_state_time_0 = np.matmul(S_T_inv, modified_state_time_k)
-            # select out the values for the canonical variables we're interested in changing
             d_v = [modified_state_time_0[3] + delta_state_0[3],
                    modified_state_time_0[4] + delta_state_0[4],
                    modified_state_time_0[5] + delta_state_0[5]]
@@ -127,67 +127,53 @@ def cw_eom(t, delta_state, a_target, mu, A):  # semi-major of target satellite
 
 def cw_propagator(time, delta_state_0, step, targeted_state, target):
     A = jcb.first_order_jacobian(a_reference)
+
     sc = sp.integrate.ode(lambda t, x: cw_eom(t, x, a_target=a_reference, mu=mu, A=A)).set_integrator('dopri5', atol=1e-12, rtol=1e-12)
     sc.set_initial_value(delta_state_0, time[0])
+
     t = np.zeros((len(time)+1))
     result = np.zeros((len(time)+1, len(delta_state_0)))
     t[0] = time[0]
     result[0][:] = delta_state_0
+
     step_count = 1
     target_status = True
     stable = True
     d_v = [0, 0, 0]
-    while sc.successful() and stable:
-        sc.integrate(sc.t + step)
-        # Store the results to plot later
-        t[step_count] = sc.t
-        result[step_count][:] = sc.y
-        step_count += 1
-        if step_count > len(t)-1 and target:
-        # if np.sqrt((sc.y[0]**2 + sc.y[1]**2 + sc.y[2]**2)) > thresh_max:  # do targeting!
-            # determine a maneuver to put the spacecraft back on track :)
-            # compute inverse of the state transition matrix
-            S_T_inv = np.linalg.inv(TargetingUtils.recompose(sc.y, 6))
-            # substitute ideal positions at time = k
-            modified_state_time_k = np.asarray([targeted_state[0], targeted_state[1], targeted_state[2], sc.y[3], sc.y[4], sc.y[5]])
-            # compute altered state at time = 0
-            # modified_state_time_0 = np.matmul(S_T_inv, modified_state_time_k)
-            # select out the values for the canonical variables we're interested in changing
-            # x =
-            #
-            #
-            # d_v = [modified_state_time_0[3] - delta_state_0[3],
-            #        modified_state_time_0[4] - delta_state_0[4],
-            #        modified_state_time_0[5] - delta_state_0[5]]
-            d_v = [modified_state_time_0[3],
-                   modified_state_time_0[4],
-                   modified_state_time_0[5]]
 
-            target_status = False
-            stable = False
-        elif step_count > len(t)-1 and not target:
-            stable = False
+    if target:
+        while sc.successful() and stable:
+            sc.integrate(sc.t + step)
+            # Store the results to plot later
+            t[step_count] = sc.t
+            result[step_count][:] = sc.y
+            step_count += 1
+            if step_count > len(t)-1 and target:
+                S_T_inv = np.linalg.inv(TargetingUtils.recompose(sc.y, 6))
+                S_T_rv_vv = S_T_inv[[np.arange(0, 6)[:, None], np.arange(0, 3)[None, :]]]
+                equals_v_plus_dv = np.matmul(S_T_rv_vv, np.asarray(targeted_state) - np.asarray(sc.y))
+                d_v = [equals_v_plus_dv[3],
+                       equals_v_plus_dv[4],
+                       equals_v_plus_dv[5]]
+
+                target_status = False
+                stable = False
+            elif step_count > len(t)-1 and not target:
+                stable = False
+
+    elif not target:
+        while sc.successful() and stable and step_count < len(t):
+            sc.integrate(sc.t + step)
+            # Store the results to plot later
+            t[step_count] = sc.t
+            result[step_count][:] = sc.y
+            step_count += 1
 
     return t, result, target_status, stable, d_v
 
 
-def main():
-    # Sedwick testing
-    delta_state_0 = [10, 100, 10, 1, 2, 3]
-    times = np.linspace(0, 1000, 1000)
-    inc_reference = 30 * np.pi / 180
-    step = times[1] - times[0]
-
-    nominal_position = [1000, 1000, 100]
-
+def test_targeter(delta_state_0, times, step, nominal_position):
     targeted_state = np.concatenate(([delta_state_0], np.eye(len(delta_state_0))), axis=0).flatten()
-
-    # Where:
-    # radial = results[:, 0]
-    # in_track = results[:, 1]
-    # z = results[:, 2]
-
-    # j2_t, j2_results, target_status, stable, d_v = j2_sedwick_propagator(targeted_state, inc_reference, times, step, nominal_position)
 
     for i in range(7):
         cw_t, cw_results, target_status, stable, d_v = cw_propagator(times, targeted_state, step, nominal_position, True)
@@ -209,6 +195,24 @@ def main():
     # Data for a three-dimensional line
     ax.plot3D(cw_results[-1][0], cw_results[-1][1], cw_results[-1][2])
     plt.show()
+
+
+def test_stm(delta_state_0, times, step, nominal_position):
+
+    return
+
+
+def main():
+    delta_state_0 = [10, 100, 10, 1, 2, 3]
+    times = np.linspace(0, 1000, 1000)
+    inc_reference = 30 * np.pi / 180
+    step = times[1] - times[0]
+    nominal_position = [1000, 1000, 100]
+
+    test_targeter(delta_state_0, times, step, nominal_position)
+    test_stm(delta_state_0, times, step, nominal_position)
+
+    return
 
 
 if __name__ == "__main__":
