@@ -125,6 +125,17 @@ def cw_eom(t, delta_state, a_target, mu, A):  # semi-major of target satellite
     return d_delta_state_dt
 
 
+def cw_stm(x0, t):  # semi-major of target satellite
+    n = np.sqrt(mu/a_reference**3)
+    cw = [[4-3*np.cos(n*t),       0,  0,              1/n*np.sin(n*t),     2/n*(1-np.cos(n*t)),         0],
+            [6*(np.sin(n*t) - n*t), 1,  0,             -2/n*(1-np.cos(n*t)), 1/n*(4*np.sin(n*t) - 3*n*t), 0],
+            [0,                     0,  np.cos(n*t),    0,                   0,                           1/n*np.sin(n*t)],
+            [3*n*np.sin(n*t),       0,  0,              np.cos(n*t),          2*np.sin(n*t),               0],
+            [-6*n*(1-np.cos(n*t)),  0,  0,             -2*np.sin(n*t),       4*np.cos(n*t) - 3,           0],
+            [0,                     0, -n*np.sin(n*t),  0,                   0,                           np.cos(n*t)]]
+    return np.matmul(cw, x0)
+
+
 def cw_propagator(time, delta_state_0, step, targeted_state, target):
     A = jcb.first_order_jacobian(a_reference)
 
@@ -198,6 +209,18 @@ def test_targeter(delta_state_0, times, step, nominal_position):
 
 
 def test_stm(delta_state_0, times, step, nominal_position):
+    targeted_state = np.concatenate(([delta_state_0], np.eye(len(delta_state_0))), axis=0).flatten()
+
+    cw_t, cw_results, target_status, stable, d_v = cw_propagator(times, targeted_state, step, nominal_position, False)
+    last_stm = TargetingUtils.recompose(flat_state=cw_results[-1], state_length=6)
+    final_truth = np.asarray(cw_results[-1][:6])
+    final_guess = np.matmul(last_stm, np.asarray(delta_state_0))
+
+    print("Time: ", cw_t[-1], ": Results:", final_truth)
+    print("Time: ", cw_t[-1], ": Results:", final_guess)
+    print("Time: 1000:", cw_stm(delta_state_0, 1000))
+
+    # test passes as of 11/18/2019
 
     return
 
@@ -209,7 +232,7 @@ def main():
     step = times[1] - times[0]
     nominal_position = [1000, 1000, 100]
 
-    test_targeter(delta_state_0, times, step, nominal_position)
+    # test_targeter(delta_state_0, times, step, nominal_position)
     test_stm(delta_state_0, times, step, nominal_position)
 
     return
