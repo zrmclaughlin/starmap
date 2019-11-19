@@ -167,18 +167,28 @@ def cw_propagator(time, delta_state_0, step, targeted_state, target):
             t[step_count] = sc.t
             result[step_count][:] = sc.y
             step_count += 1
-            if step_count > len(t)-1 and target:
+            if step_count > len(t) - 1 and target:
+                # Constrain problem to velocity space
+                S_T = TargetingUtils.recompose(sc.y, 6)
+                S_T_rv_vv = S_T[np.arange(0, 6)[:, None], np.arange(3, 6)[None, :]]
+                S_T_rv_inv = np.linalg.inv(S_T[np.arange(0, 3)[:, None], np.arange(3, 6)[None, :]])
+                S_T_vv_inv = np.linalg.inv(S_T[np.arange(3, 6)[:, None], np.arange(3, 6)[None, :]])
+                empty_rr_vr_inv = np.zeros(shape=(6, 3))
+                # Invert modified STM
+                S_T_inv = np.linalg.inv(np.concatenate((empty_rr_vr, S_T_rv_vv), axis=1))
+                # Compute the final difference between ideal and actual
+                final_differential = np.asarray(targeted_state) - sc.y[:3]
+                # find the new delta V
+                d_v = np.matmul(S_T_inv, final_differential) + delta_state_0[3:6]
+                print(d_v)
+
+            elif step_count > len(t)-1 and target and False:
                 S_T_inv = np.linalg.inv(TargetingUtils.recompose(sc.y, 6))
-                # S_T = TargetingUtils.recompose(sc.y, 6)
-                # S_T_rv = S_T[[np.arange(0, 3)[:, None], np.arange(0, 3)[None, :]]]
-                # S_T_vv = S_T_inv[[np.arange(4, 6)[:, None], np.arange(0, 3)[None, :]]]
-                # print(S_T_vv.shape)
                 new_initial_state = np.asarray(delta_state_0[:6]) + \
                                     np.matmul(S_T_inv, np.asarray([targeted_state[0],
                                                                    targeted_state[1],
                                                                    targeted_state[2],
                                                                    0, 0, 0]) - np.asarray(sc.y[:6]))
-                print(new_initial_state)
                 d_v = [new_initial_state[3], new_initial_state[4], new_initial_state[5]]
                 target_status = False
                 stable = False
