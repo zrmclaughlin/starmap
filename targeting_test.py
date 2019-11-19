@@ -25,12 +25,12 @@ r_e = 6378136.3
 j2 = 1.082E-3
 mu = 3.986004415E14
 a_reference = 6378136.3 + 300000
+inc_reference = 30 * np.pi / 180
 
 
 def sedwick_eom(t, delta_state, n, c, l, q, phi, A):
-    state_size = len(delta_state)  # 1: implies x ODEs
-    d_delta_state_dt = np.zeros((1, state_size))
-    S_T = TargetingUtils.recompose(delta_state, len(A[0]))
+    d_delta_state_dt = np.zeros(shape=(1, 6))
+    S_T = TargetingUtils.recompose(delta_state, 6)
     S_T_dt = np.matmul(A, S_T).tolist()
 
     d_delta_state_dt[0][0] = delta_state[3]
@@ -40,31 +40,33 @@ def sedwick_eom(t, delta_state, n, c, l, q, phi, A):
     d_delta_state_dt[0][4] = -2 * n * c * delta_state[3]
     d_delta_state_dt[0][5] = -q ** 2 * delta_state[2] + 2 * l * q * np.cos(q * t + phi)
 
-    d_delta_state_dt = np.concatenate(([d_delta_state_dt], S_T_dt), axis=0).flatten()
+    # print(S_T_dt.size)
+
+    d_delta_state_dt = np.concatenate((d_delta_state_dt, S_T_dt), axis=0).flatten()
 
     return d_delta_state_dt
 
 
-def j2_sedwick_propagator(delta_state_0, i_sat1, time, step, targeted_state):
+def j2_sedwick_propagator(time, delta_state_0, step, targeted_state, target):
 
     # calculate j2 parameter effects, assuming that the reference
     # orbit is the same as satellite 1's circularized orbit.
-    s = 3 * j2 * r_e ** 2 / (8 * a_reference ** 2) * (1 + 3 * np.cos(2 * i_sat1))
+    s = 3 * j2 * r_e ** 2 / (8 * a_reference ** 2) * (1 + 3 * np.cos(2 * inc_reference))
     c = np.sqrt(s + 1)
     n = np.sqrt(mu / a_reference ** 3)
-    k = n*c + 3*n*j2*r_e**2/(2*a_reference**2)*np.cos(i_sat1)**2
+    k = n*c + 3*n*j2*r_e**2/(2*a_reference**2)*np.cos(inc_reference)**2
 
-    i_sat2 = i_sat1 - delta_state_0[5]/(k*a_reference)
+    i_sat2 = inc_reference - delta_state_0[5]/(k*a_reference)
 
-    delta_RAAN_0 = delta_state_0[2]/(a_reference*np.sin(i_sat1))
-    gamma_0 = float(acot( (cot(i_sat2)*np.sin(i_sat1) - np.cos(i_sat1)*np.cos(delta_RAAN_0)) / np.sin(delta_RAAN_0)))
-    phi_0 = np.arccos(np.cos(i_sat1)*np.cos(i_sat2) + np.sin(i_sat1)*np.sin(i_sat2)*np.cos(delta_RAAN_0))
+    delta_RAAN_0 = delta_state_0[2]/(a_reference*np.sin(inc_reference))
+    gamma_0 = float(acot( (cot(i_sat2)*np.sin(inc_reference) - np.cos(inc_reference)*np.cos(delta_RAAN_0)) / np.sin(delta_RAAN_0)))
+    phi_0 = np.arccos(np.cos(inc_reference)*np.cos(i_sat2) + np.sin(inc_reference)*np.sin(i_sat2)*np.cos(delta_RAAN_0))
 
-    d_RAAN_sat1_0 = -3*n*j2*r_e**2/(2*a_reference**2)*np.cos(i_sat1)
+    d_RAAN_sat1_0 = -3*n*j2*r_e**2/(2*a_reference**2)*np.cos(inc_reference)
     d_RAAN_sat2_0 = -3*n*j2*r_e**2/(2*a_reference**2)*np.cos(i_sat2)
 
-    q = n*c - (np.sin(gamma_0)*np.cos(gamma_0)*(1/np.tan(delta_RAAN_0)) - np.sin(gamma_0)**2*np.cos(i_sat1))*(d_RAAN_sat1_0 - d_RAAN_sat2_0) - d_RAAN_sat1_0*np.cos(i_sat1)
-    l = -a_reference*(np.sin(i_sat1)*np.sin(i_sat2)*np.sin(delta_RAAN_0)/np.sin(phi_0))*(d_RAAN_sat1_0 - d_RAAN_sat2_0)
+    q = n*c - (np.sin(gamma_0)*np.cos(gamma_0)*(1/np.tan(delta_RAAN_0)) - np.sin(gamma_0)**2*np.cos(inc_reference))*(d_RAAN_sat1_0 - d_RAAN_sat2_0) - d_RAAN_sat1_0*np.cos(inc_reference)
+    l = -a_reference*(np.sin(inc_reference)*np.sin(i_sat2)*np.sin(delta_RAAN_0)/np.sin(phi_0))*(d_RAAN_sat1_0 - d_RAAN_sat2_0)
 
     m = a_reference * phi_0
     phi = delta_state_0[2] / m
@@ -81,31 +83,40 @@ def j2_sedwick_propagator(delta_state_0, i_sat1, time, step, targeted_state):
 
     sc = sp.integrate.ode(lambda t, x: sedwick_eom(t, x, n, c, l, q, phi, A)).set_integrator('dopri5', atol=1e-12, rtol=1e-12)
     sc.set_initial_value(delta_state_0, time[0])
+
     t = np.zeros((len(time)))
     result = np.zeros((len(time), len(delta_state_0)))
     t[0] = time[0]
     result[0][:] = delta_state_0
+
     step_count = 1
     target_status = True
     stable = True
     d_v = [0, 0, 0]
-    while sc.successful() and stable:
-        sc.integrate(sc.t + step)
-        # Store the results to plot later
-        t[step_count] = sc.t
-        result[step_count][:] = sc.y
-        step_count += 1
-        if step_count > len(t):
-        # if np.sqrt((sc.y[0]**2 + sc.y[1]**2 + sc.y[2]**2)) > thresh_max:  # do targeting!
-            S_T_inv = np.linalg.inv(TargetingUtils.recompose(sc.y, 6))
-            modified_state_time_k = np.asarray([targeted_state[0], targeted_state[1], targeted_state[2], sc.y[3], sc.y[4], sc.y[5]])
-            modified_state_time_0 = np.matmul(S_T_inv, modified_state_time_k)
-            d_v = [modified_state_time_0[3] + delta_state_0[3],
-                   modified_state_time_0[4] + delta_state_0[4],
-                   modified_state_time_0[5] + delta_state_0[5]]
 
-            target_status = False
-            stable = False
+    if target:
+        while sc.successful() and stable:
+            sc.integrate(sc.t + step)
+            # Store the results to plot later
+            t[step_count] = sc.t
+            result[step_count][:] = sc.y
+            step_count += 1
+            if step_count > len(t):
+                S_T_inv = np.linalg.inv(TargetingUtils.recompose(sc.y, 6))
+                modified_state_time_k = np.asarray([targeted_state[0], targeted_state[1], targeted_state[2], sc.y[3], sc.y[4], sc.y[5]])
+                modified_state_time_0 = np.matmul(S_T_inv, modified_state_time_k)
+                d_v = [modified_state_time_0[3] + delta_state_0[3],
+                       modified_state_time_0[4] + delta_state_0[4],
+                       modified_state_time_0[5] + delta_state_0[5]]
+                target_status = False
+                stable = False
+    elif not target:
+        while sc.successful() and stable and step_count < len(t):
+            sc.integrate(sc.t + step)
+            # Store the results to plot later
+            t[step_count] = sc.t
+            result[step_count][:] = sc.y
+            step_count += 1
 
     return t, result, target_status, stable, d_v
 
@@ -209,6 +220,8 @@ def test_targeter(delta_state_0, times, step, nominal_position):
 
 
 def test_stm(delta_state_0, times, step, nominal_position):
+    print("Time: 1000:", "CW Analytic STM", cw_stm(delta_state_0, 1000))
+    # Test 1 - CW
     targeted_state = np.concatenate(([delta_state_0], np.eye(len(delta_state_0))), axis=0).flatten()
 
     cw_t, cw_results, target_status, stable, d_v = cw_propagator(times, targeted_state, step, nominal_position, False)
@@ -216,11 +229,20 @@ def test_stm(delta_state_0, times, step, nominal_position):
     final_truth = np.asarray(cw_results[-1][:6])
     final_guess = np.matmul(last_stm, np.asarray(delta_state_0))
 
-    print("Time: ", cw_t[-1], ": Results:", final_truth)
-    print("Time: ", cw_t[-1], ": Results:", final_guess)
-    print("Time: 1000:", cw_stm(delta_state_0, 1000))
-
+    print("Time: ", cw_t[-1], ": Results CW:", final_truth)
+    print("Time: ", cw_t[-1], ": Results STM CW:", final_guess)
     # test passes as of 11/18/2019
+
+    # Test 2 - J2
+    j2_t, j2_results, target_status, stable, d_v = j2_sedwick_propagator(times, targeted_state, step, nominal_position, False)
+    j2_last_stm = TargetingUtils.recompose(j2_results[-1], state_length=6)
+    j2_final_truth = np.asarray(j2_results[-1][:6])
+    j2_final_guess = np.matmul(j2_last_stm, delta_state_0)
+
+    print("Time: ", j2_t[-1], ": Results J2:", j2_final_truth)
+    print("Time: ", j2_t[-1], ": Results STM J2:", j2_final_guess)
+    # test passes as of 11/18/2019
+
 
     return
 
@@ -228,7 +250,6 @@ def test_stm(delta_state_0, times, step, nominal_position):
 def main():
     delta_state_0 = [10, 100, 10, 1, 2, 3]
     times = np.linspace(0, 1000, 1000)
-    inc_reference = 30 * np.pi / 180
     step = times[1] - times[0]
     nominal_position = [1000, 1000, 100]
 
