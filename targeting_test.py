@@ -7,10 +7,7 @@ import matplotlib
 matplotlib.rcParams.update({'font.size': 8})
 import scipy as sp
 from scipy import integrate
-from sympy.solvers import solve
-from sympy import Symbol
-from sympy import cos as symcos
-from sympy import sin as symsin
+from sympy import *
 from mpmath import *
 import OrbitalElements
 import TargetingUtils
@@ -172,12 +169,17 @@ def cw_propagator(time, delta_state_0, step, targeted_state, target):
             step_count += 1
             if step_count > len(t)-1 and target:
                 S_T_inv = np.linalg.inv(TargetingUtils.recompose(sc.y, 6))
-                S_T_rv_vv = S_T_inv[[np.arange(0, 6)[:, None], np.arange(0, 3)[None, :]]]
-                equals_v_plus_dv = np.matmul(S_T_rv_vv, np.asarray(targeted_state) - np.asarray(sc.y))
-                d_v = [equals_v_plus_dv[3],
-                       equals_v_plus_dv[4],
-                       equals_v_plus_dv[5]]
-
+                # S_T = TargetingUtils.recompose(sc.y, 6)
+                # S_T_rv = S_T[[np.arange(0, 3)[:, None], np.arange(0, 3)[None, :]]]
+                # S_T_vv = S_T_inv[[np.arange(4, 6)[:, None], np.arange(0, 3)[None, :]]]
+                # print(S_T_vv.shape)
+                new_initial_state = np.asarray(delta_state_0[:6]) + \
+                                    np.matmul(S_T_inv, np.asarray([targeted_state[0],
+                                                                   targeted_state[1],
+                                                                   targeted_state[2],
+                                                                   0, 0, 0]) - np.asarray(sc.y[:6]))
+                print(new_initial_state)
+                d_v = [new_initial_state[3], new_initial_state[4], new_initial_state[5]]
                 target_status = False
                 stable = False
             elif step_count > len(t)-1 and not target:
@@ -205,18 +207,6 @@ def test_targeter(delta_state_0, times, step, nominal_position):
         targeted_state = np.concatenate(([delta_state_0], np.eye(len(delta_state_0))), axis=0).flatten()
 
     cw_t, cw_results, target_status, stable, d_v = cw_propagator(times, targeted_state, step, nominal_position, False)
-
-    print(cw_results[-1][0], cw_results[-1][1], cw_results[-1][2])
-
-    ax = plt.axes(projection='3d')
-    ax.set_xlabel("Radial")
-    ax.set_ylabel("In-Track")
-    ax.set_zlabel("Cross-Track")
-    ax.set_title("Relative Motion")
-
-    # Data for a three-dimensional line
-    ax.plot3D(cw_results[-1][0], cw_results[-1][1], cw_results[-1][2])
-    plt.show()
 
 
 def test_stm(delta_state_0, times, step, nominal_position):
@@ -253,8 +243,8 @@ def main():
     step = times[1] - times[0]
     nominal_position = [1000, 1000, 100]
 
-    # test_targeter(delta_state_0, times, step, nominal_position)
-    test_stm(delta_state_0, times, step, nominal_position)
+    test_targeter(delta_state_0, times, step, nominal_position)
+    # test_stm(delta_state_0, times, step, nominal_position)
 
     return
 
