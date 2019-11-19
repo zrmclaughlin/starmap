@@ -170,7 +170,30 @@ def cw_propagator(time, delta_state_0, step, targeted_state, target):
             if step_count > len(t) - 1 and target:
                 S_T = TargetingUtils.recompose(sc.y, 6)
                 np.linalg.inv(S_T)
-                S_T_rv_vv = S_T[np.arange(0, 6)[:, None], np.arange(3, 6)[None, :]]
+                S_T_rv_vv = Matrix(S_T[np.arange(0, 6)[:, None], np.arange(3, 6)[None, :]])
+                initial_d_dv1, initial_d_dv2, initial_d_dv3 = symbols('initial_d_dv1 initial_d_dv2 initial_d_dv3',
+                                                                      real=True)
+                initial_d_dv = Matrix([initial_d_dv1, initial_d_dv2, initial_d_dv3])
+                S_T_times_initial_d_dv = S_T_rv_vv*initial_d_dv
+                final_d_dp = np.asarray(targeted_state) - sc.y[:3]
+
+                # d_v = [solve(S_T_times_initial_d_dv[0] - final_d_dp[0], initial_d_dv1),
+                #        solve(S_T_times_initial_d_dv[1] - final_d_dp[1], initial_d_dv2),
+                #        solve(S_T_times_initial_d_dv[2] - final_d_dp[2], initial_d_dv3)]
+
+                eqs = [S_T_times_initial_d_dv[0] - final_d_dp[0],
+                       S_T_times_initial_d_dv[1] - final_d_dp[1],
+                       S_T_times_initial_d_dv[2] - final_d_dp[2]]
+
+                reeeeee = linsolve(eqs, initial_d_dv1, initial_d_dv2, initial_d_dv3)
+                print(reeeeee)
+
+                print(S_T_times_initial_d_dv[1] - final_d_dp[1])
+                print(solve(S_T_times_initial_d_dv[2] - final_d_dp[2], initial_d_dv3))
+
+                target_status = False
+                stable = False
+
             elif step_count > len(t) - 1 and target and False:
                 # Constrain problem to velocity space
                 S_T = TargetingUtils.recompose(sc.y, 6)
@@ -197,6 +220,8 @@ def cw_propagator(time, delta_state_0, step, targeted_state, target):
                 # find the new delta V
                 d_v = np.matmul(S_T_inv, final_differential) + delta_state_0[3:6]
                 print(d_v)
+                target_status = False
+                stable = False
 
             elif step_count > len(t)-1 and target and False:
                 S_T_inv = np.linalg.inv(TargetingUtils.recompose(sc.y, 6))
