@@ -249,8 +249,8 @@ def test_targeter(delta_state_0, times, step, nominal_position):
         cw_t, cw_results, target_status, stable, d_v = cw_propagator(times, targeted_state, step, nominal_position, True)
         print("loop", i, " | Final Position:", cw_results[-1][0], cw_results[-1][1], cw_results[-1][2])
         print("Delta delta V: ", d_v)
-        delta_state_0 = [nominal_position[0], nominal_position[1], nominal_position[2],
-                         delta_state_0[0] + d_v[0], delta_state_0[1] + d_v[1], delta_state_0[2] + d_v[2]]
+        delta_state_0 = [delta_state_0[0], delta_state_0[1], delta_state_0[2],
+                         delta_state_0[3] + d_v[0], delta_state_0[4] + d_v[1], delta_state_0[5] + d_v[2]]
         print("New Relative State: ", delta_state_0)
         targeted_state = np.concatenate(([delta_state_0], np.eye(len(delta_state_0))), axis=0).flatten()
 
