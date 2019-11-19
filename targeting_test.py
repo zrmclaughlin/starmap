@@ -168,14 +168,30 @@ def cw_propagator(time, delta_state_0, step, targeted_state, target):
             result[step_count][:] = sc.y
             step_count += 1
             if step_count > len(t) - 1 and target:
+                S_T = TargetingUtils.recompose(sc.y, 6)
+                np.linalg.inv(S_T)
+                S_T_rv_vv = S_T[np.arange(0, 6)[:, None], np.arange(3, 6)[None, :]]
+            elif step_count > len(t) - 1 and target and False:
                 # Constrain problem to velocity space
                 S_T = TargetingUtils.recompose(sc.y, 6)
+                S_T_inv = np.linalg.inv(S_T)  #[np.arange(0, 6)[:, None], np.arange(0, 3)[None, :]]
+                # Compute the final difference between ideal and actual
+                final_differential = np.asarray([targeted_state[0], targeted_state[1], targeted_state[2], 0, 0, 0]) - sc.y[:6]
+                print(final_differential)
+                # find the new delta V
+                print(S_T_inv.shape)
+                d_v = np.matmul(S_T_inv, final_differential)[:3] + delta_state_0[3:6]
+                target_status = False
+                stable = False
+            elif step_count > len(t) - 1 and target and False:
+                # Constrain problem to velocity space
+                S_T = TargetingUtils.recompose(sc.y, 6)
+                np.linalg.inv(S_T)
                 S_T_rv_vv = S_T[np.arange(0, 6)[:, None], np.arange(3, 6)[None, :]]
                 S_T_rv_inv = np.linalg.inv(S_T[np.arange(0, 3)[:, None], np.arange(3, 6)[None, :]])
                 S_T_vv_inv = np.linalg.inv(S_T[np.arange(3, 6)[:, None], np.arange(3, 6)[None, :]])
                 empty_rr_vr_inv = np.zeros(shape=(6, 3))
                 # Invert modified STM
-                S_T_inv = np.linalg.inv(np.concatenate((empty_rr_vr, S_T_rv_vv), axis=1))
                 # Compute the final difference between ideal and actual
                 final_differential = np.asarray(targeted_state) - sc.y[:3]
                 # find the new delta V
