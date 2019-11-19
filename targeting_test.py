@@ -185,12 +185,9 @@ def cw_propagator(time, delta_state_0, step, targeted_state, target):
                        S_T_times_initial_d_dv[1] - final_d_dp[1],
                        S_T_times_initial_d_dv[2] - final_d_dp[2]]
 
-                reeeeee = linsolve(eqs, initial_d_dv1, initial_d_dv2, initial_d_dv3)
-                print(reeeeee)
-
-                print(S_T_times_initial_d_dv[1] - final_d_dp[1])
-                print(solve(S_T_times_initial_d_dv[2] - final_d_dp[2], initial_d_dv3))
-
+                reeeeee = linsolve(eqs, initial_d_dv1, initial_d_dv2, initial_d_dv3).args[0]
+                # print(reeeeee[0], reeeeee[1], reeeeee[2], len(reeeeee))
+                d_v = [reeeeee[0] + sc.y[3], reeeeee[1] + sc.y[4], reeeeee[2] + sc.y[5]]
                 target_status = False
                 stable = False
 
