@@ -169,7 +169,6 @@ def cw_propagator(time, delta_state_0, step, targeted_state, target):
             step_count += 1
             if step_count > len(t) - 1 and target:
                 S_T = TargetingUtils.recompose(sc.y, 6)
-                np.linalg.inv(S_T)
                 S_T_rv_vv = Matrix(S_T[np.arange(0, 6)[:, None], np.arange(3, 6)[None, :]])
                 initial_d_dv1, initial_d_dv2, initial_d_dv3 = symbols('initial_d_dv1 initial_d_dv2 initial_d_dv3',
                                                                       real=True)
@@ -186,15 +185,14 @@ def cw_propagator(time, delta_state_0, step, targeted_state, target):
                        S_T_times_initial_d_dv[2] - final_d_dp[2]]
 
                 reeeeee = linsolve(eqs, initial_d_dv1, initial_d_dv2, initial_d_dv3).args[0]
-                # print(reeeeee[0], reeeeee[1], reeeeee[2], len(reeeeee))
-                d_v = [reeeeee[0] + sc.y[3], reeeeee[1] + sc.y[4], reeeeee[2] + sc.y[5]]
+                d_v = [reeeeee[0], reeeeee[1], reeeeee[2]]  # reference - actual
                 target_status = False
                 stable = False
 
             elif step_count > len(t) - 1 and target and False:
                 # Constrain problem to velocity space
                 S_T = TargetingUtils.recompose(sc.y, 6)
-                S_T_inv = np.linalg.inv(S_T)  #[np.arange(0, 6)[:, None], np.arange(0, 3)[None, :]]
+                S_T_inv = np.linalg.inv(S_T)  # [np.arange(0, 6)[:, None], np.arange(0, 3)[None, :]]
                 # Compute the final difference between ideal and actual
                 final_differential = np.asarray([targeted_state[0], targeted_state[1], targeted_state[2], 0, 0, 0]) - sc.y[:6]
                 print(final_differential)
@@ -249,9 +247,11 @@ def test_targeter(delta_state_0, times, step, nominal_position):
 
     for i in range(7):
         cw_t, cw_results, target_status, stable, d_v = cw_propagator(times, targeted_state, step, nominal_position, True)
-        print("loop", i, cw_results[-1][0], cw_results[-1][1], cw_results[-1][2])
-        print(d_v)
-        delta_state_0 = [10, 100, 10, d_v[0], d_v[1], d_v[2]]
+        print("loop", i, " | Final Position:", cw_results[-1][0], cw_results[-1][1], cw_results[-1][2])
+        print("Delta delta V: ", d_v)
+        delta_state_0 = [nominal_position[0], nominal_position[1], nominal_position[2],
+                         delta_state_0[0] + d_v[0], delta_state_0[1] + d_v[1], delta_state_0[2] + d_v[2]]
+        print("New Relative State: ", delta_state_0)
         targeted_state = np.concatenate(([delta_state_0], np.eye(len(delta_state_0))), axis=0).flatten()
 
     cw_t, cw_results, target_status, stable, d_v = cw_propagator(times, targeted_state, step, nominal_position, False)
@@ -286,10 +286,10 @@ def test_stm(delta_state_0, times, step, nominal_position):
 
 
 def main():
-    delta_state_0 = [10, 100, 10, 1, 2, 3]
-    times = np.linspace(0, 1000, 1000)
+    delta_state_0 = [10, 10, 10, 1, 2, 3]
+    times = np.linspace(0, 100, 100)
     step = times[1] - times[0]
-    nominal_position = [1000, 1000, 100]
+    nominal_position = [100, 1000, 20]
 
     test_targeter(delta_state_0, times, step, nominal_position)
     # test_stm(delta_state_0, times, step, nominal_position)
