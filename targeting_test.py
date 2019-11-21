@@ -53,10 +53,10 @@ def j2_sedwick_propagator(time, delta_state_0, step, targeted_state, target):
     n = np.sqrt(mu / a_reference ** 3)
     k = n*c + 3*n*j2*r_e**2/(2*a_reference**2)*np.cos(inc_reference)**2
 
-    i_sat2 = inc_reference - delta_state_0[5]/(k*a_reference)
+    i_sat2 = float(inc_reference - delta_state_0[5]/(k*a_reference))
 
     delta_RAAN_0 = delta_state_0[2]/(a_reference*np.sin(inc_reference))
-    gamma_0 = float(acot( (cot(i_sat2)*np.sin(inc_reference) - np.cos(inc_reference)*np.cos(delta_RAAN_0)) / np.sin(delta_RAAN_0)))
+    gamma_0 = float(acot((cot(i_sat2)*np.sin(inc_reference) - np.cos(inc_reference)*np.cos(delta_RAAN_0)) / np.sin(delta_RAAN_0)))
     phi_0 = np.arccos(np.cos(inc_reference)*np.cos(i_sat2) + np.sin(inc_reference)*np.sin(i_sat2)*np.cos(delta_RAAN_0))
 
     d_RAAN_sat1_0 = -3*n*j2*r_e**2/(2*a_reference**2)*np.cos(inc_reference)
@@ -81,8 +81,8 @@ def j2_sedwick_propagator(time, delta_state_0, step, targeted_state, target):
     sc = sp.integrate.ode(lambda t, x: sedwick_eom(t, x, n, c, l, q, phi, A)).set_integrator('dopri5', atol=1e-12, rtol=1e-12)
     sc.set_initial_value(delta_state_0, time[0])
 
-    t = np.zeros((len(time)))
-    result = np.zeros((len(time), len(delta_state_0)))
+    t = np.zeros((len(time)+1))
+    result = np.zeros((len(time)+1, len(delta_state_0)))
     t[0] = time[0]
     result[0][:] = delta_state_0
 
@@ -98,15 +98,29 @@ def j2_sedwick_propagator(time, delta_state_0, step, targeted_state, target):
             t[step_count] = sc.t
             result[step_count][:] = sc.y
             step_count += 1
-            if step_count > len(t):
-                S_T_inv = np.linalg.inv(TargetingUtils.recompose(sc.y, 6))
-                modified_state_time_k = np.asarray([targeted_state[0], targeted_state[1], targeted_state[2], sc.y[3], sc.y[4], sc.y[5]])
-                modified_state_time_0 = np.matmul(S_T_inv, modified_state_time_k)
-                d_v = [modified_state_time_0[3] + delta_state_0[3],
-                       modified_state_time_0[4] + delta_state_0[4],
-                       modified_state_time_0[5] + delta_state_0[5]]
+
+            if step_count > len(t) - 1 and target:
+                S_T = TargetingUtils.recompose(sc.y, 6)
+                S_T_rv_vv = Matrix(S_T[np.arange(0, 6)[:, None], np.arange(3, 6)[None, :]])
+                initial_d_dv1, initial_d_dv2, initial_d_dv3 = symbols('initial_d_dv1 initial_d_dv2 initial_d_dv3',
+                                                                      real=True)
+                initial_d_dv = Matrix([initial_d_dv1, initial_d_dv2, initial_d_dv3])
+                S_T_times_initial_d_dv = S_T_rv_vv*initial_d_dv
+                final_d_dp = np.asarray(targeted_state) - sc.y[:3]
+
+                eqs = [S_T_times_initial_d_dv[0] - final_d_dp[0],
+                       S_T_times_initial_d_dv[1] - final_d_dp[1],
+                       S_T_times_initial_d_dv[2] - final_d_dp[2]]
+
+                reeeeee = linsolve(eqs, initial_d_dv1, initial_d_dv2, initial_d_dv3).args[0]
+                d_v = [reeeeee[0], reeeeee[1], reeeeee[2]]  # reference - actual
+
                 target_status = False
                 stable = False
+
+            elif step_count > len(t)-1 and not target:
+                stable = False
+
     elif not target:
         while sc.successful() and stable and step_count < len(t):
             sc.integrate(sc.t + step)
@@ -183,6 +197,7 @@ def cw_propagator(time, delta_state_0, step, targeted_state, target):
 
                 reeeeee = linsolve(eqs, initial_d_dv1, initial_d_dv2, initial_d_dv3).args[0]
                 d_v = [reeeeee[0], reeeeee[1], reeeeee[2]]  # reference - actual
+
                 target_status = False
                 stable = False
 
@@ -201,7 +216,12 @@ def cw_propagator(time, delta_state_0, step, targeted_state, target):
 
 
 def test_targeter(delta_state_0, times, step, nominal_position):
-    targeted_state = np.concatenate(([delta_state_0], np.eye(len(delta_state_0))), axis=0).flatten()
+    delta_state_cw = [delta_state_0[0], delta_state_0[1], delta_state_0[2], delta_state_0[3], delta_state_0[4], delta_state_0[5]]
+    delta_state_J2 = [delta_state_0[0], delta_state_0[1], delta_state_0[2], delta_state_0[3], delta_state_0[4], delta_state_0[5]]
+
+    # Test 1 - CW
+    print("++++++++ CW TARGETING TEST ++++++++")
+    targeted_state = np.concatenate(([delta_state_cw], np.eye(len(delta_state_cw))), axis=0).flatten()
     final_state = [10000, 10000, 10000]
     counter = 0
     while ((np.linalg.norm(np.asarray(final_state)) - np.linalg.norm(np.asarray(nominal_position))) > 10) and (counter < 10):
@@ -209,10 +229,10 @@ def test_targeter(delta_state_0, times, step, nominal_position):
         print("Loop", counter, " | Final Position:", cw_results[-1][0], cw_results[-1][1], cw_results[-1][2])
         final_state = [cw_results[-1][0], cw_results[-1][1], cw_results[-1][2]]
         print("|->  Delta delta V: ", d_v)
-        delta_state_0 = [delta_state_0[0], delta_state_0[1], delta_state_0[2],
-                         delta_state_0[3] + d_v[0], delta_state_0[4] + d_v[1], delta_state_0[5] + d_v[2]]
-        print("|->  New Relative State: ", delta_state_0)
-        targeted_state = np.concatenate(([delta_state_0], np.eye(len(delta_state_0))), axis=0).flatten()
+        delta_state_cw = [delta_state_cw[0], delta_state_cw[1], delta_state_cw[2],
+                         delta_state_cw[3] + d_v[0], delta_state_cw[4] + d_v[1], delta_state_cw[5] + d_v[2]]
+        print("|->  New Relative State: ", delta_state_cw)
+        targeted_state = np.concatenate(([delta_state_cw], np.eye(len(delta_state_cw))), axis=0).flatten()
         counter = counter + 1
 
     cw_t, cw_results, target_status, stable, d_v = cw_propagator(times, targeted_state, step, nominal_position, False)
@@ -220,6 +240,26 @@ def test_targeter(delta_state_0, times, step, nominal_position):
     print("Done. Total Loops: ", counter)
 
     # test passed as of 11/19/2019
+
+    # Test 2 - J2
+    print("++++++++ J2 TARGETING TEST ++++++++")
+    targeted_state = np.concatenate(([delta_state_J2], np.eye(len(delta_state_J2))), axis=0).flatten()
+    final_state = [10000, 10000, 10000]
+    counter = 0
+    while ((np.linalg.norm(np.asarray(final_state)) - np.linalg.norm(np.asarray(nominal_position))) > 10) and (counter < 10):
+        j2_t, j2_results, target_status, stable, d_v = j2_sedwick_propagator(times, targeted_state, step, nominal_position, True)
+        print("Loop", counter, " | Final Position:", j2_results[-1][0], j2_results[-1][1], j2_results[-1][2])
+        final_state = [j2_results[-1][0], j2_results[-1][1], j2_results[-1][2]]
+        print("|->  Delta delta V: ", d_v)
+        delta_state_J2 = [delta_state_J2[0], delta_state_J2[1], delta_state_J2[2],
+                         delta_state_J2[3] + d_v[0], delta_state_J2[4] + d_v[1], delta_state_J2[5] + d_v[2]]
+        print("|->  New Relative State: ", delta_state_J2)
+        targeted_state = np.concatenate(([delta_state_J2], np.eye(len(delta_state_J2))), axis=0).flatten()
+        counter = counter + 1
+
+    j2_t, j2_results, target_status, stable, d_v = j2_sedwick_propagator(times, targeted_state, step, nominal_position, False)
+    print("Post-Targeting State: ", j2_results[-1][0], j2_results[-1][1], j2_results[-1][2])
+    print("Done. Total Loops: ", counter)
 
 
 def test_stm(delta_state_0, times, step, nominal_position):
