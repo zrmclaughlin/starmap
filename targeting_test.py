@@ -37,8 +37,6 @@ def sedwick_eom(t, delta_state, n, c, l, q, phi, A):
     d_delta_state_dt[0][4] = -2 * n * c * delta_state[3]
     d_delta_state_dt[0][5] = -q ** 2 * delta_state[2] + 2 * l * q * np.cos(q * t + phi)
 
-    # print(S_T_dt.size)
-
     d_delta_state_dt = np.concatenate((d_delta_state_dt, S_T_dt), axis=0).flatten()
 
     return d_delta_state_dt

@@ -1,14 +1,24 @@
 import numpy as np
 import scipy as sp
 from scipy import integrate
-
+from sympy import *
+from mpmath import *
 import CombinedModelJacobian as CJJacobian
 import TargetingUtils
 
 r_e = 6378136.3
 j2 = 1.082E-3
 mu = 3.986004415E14
+a_reference = 6378136.3 + 300000
+inc_reference = 30 * np.pi / 180
 k_j2 = 3*j2*mu*r_e**2 / 2
+
+
+def velocity_from_state(wy, wz, r_reference, v_z, x, y, z, p1, p2, p3):
+    vx = p1 + y*wz - (z - r_reference)*wy
+    vy = p2 - x*wz
+    vz = p3 - v_z + x*wy
+    return [vx, vy, vz]
 
 
 def combined_model_eom(t, state, A, c_d, a_m_reference, a_m_chaser, r_0, rho_0, H):
@@ -47,11 +57,80 @@ def combined_model_eom(t, state, A, c_d, a_m_reference, a_m_chaser, r_0, rho_0, 
     dstate_dt[9] = w_bar*state[6] + zeta*np.cos(state[4]) - state[8]*wz + f_drag_chaser*v_chaser[1]  # d p2 / dt
     dstate_dt[10] = w_bar*(state[7] - state[0]) + zeta*np.sin(state[3])*np.sin(state[4]) + state[8]*wy + f_drag_chaser*v_chaser[2]  # d p3 / dt
 
+    dstate_dt = np.concatenate((dstate_dt, S_T_dt), axis=0).flatten()
+
     return dstate_dt
 
 
-def combined_targeter():
-    return
+def combined_targeter(time, delta_state_0, step, targeted_state, target, c_d, a_m_reference, a_m_chaser, r_0, rho_0, H):
+
+    # compute constants for reuse in targeting at time t=0
+    # some variables are assigned from the initial state vector for clarity's sake
+    wy_0 = -delta_state_0[2] / delta_state_0[0] ** 2
+    wz_0 = k_j2 * np.sin(2 * delta_state_0[4]) * np.sin(delta_state_0[3]) / (delta_state_0[2] * delta_state_0[0] ** 3)
+    r_reference_0 = delta_state_0[0], v_z_0 = delta_state_0[1]
+    x_0 = delta_state_0[5], y_0 = delta_state_0[6], z_0 = delta_state_0[7]
+    p1_0 = delta_state_0[8], p2_0 = delta_state_0[9], p3_0 = delta_state_0[10]
+    v_0 = velocity_from_state(wy_0, wz_0, r_reference_0, v_z_0, x_0, y_0, z_0, p1_0, p2_0, p3_0)
+
+    # Jacobian matrix
+    A = CJJacobian.get_jacobian(c_d, a_m_reference, a_m_chaser, r_0, rho_0, H)
+
+    sc = sp.integrate.ode(
+        lambda t, x: combined_model_eom(t, x, A, c_d, a_m_reference, a_m_chaser, r_0, rho_0, H)).set_integrator('dopri5',
+                                                                                                        atol=1e-10,
+                                                                                                        rtol=1e-5)
+    sc.set_initial_value(delta_state_0, time[0])
+
+    t = np.zeros((len(time)+1))
+    result = np.zeros((len(time)+1, len(delta_state_0)))
+    t[0] = time[0]
+    result[0][:] = delta_state_0
+
+    step_count = 1
+    target_status = True
+    stable = True
+    d_v = [0, 0, 0]
+
+    if target:
+        while sc.successful() and stable:
+            sc.integrate(sc.t + step)
+            # Store the results to plot later
+            t[step_count] = sc.t
+            result[step_count][:] = sc.y
+            step_count += 1
+
+            if step_count > len(t) - 1 and target:
+                S_T = TargetingUtils.recompose(sc.y, 6)
+                S_T_rv_vv = Matrix(S_T[np.arange(0, 6)[:, None], np.arange(3, 6)[None, :]])
+                initial_d_dv1, initial_d_dv2, initial_d_dv3 = symbols('initial_d_dv1 initial_d_dv2 initial_d_dv3',
+                                                                      real=True)
+                initial_d_dv = Matrix([initial_d_dv1, initial_d_dv2, initial_d_dv3])
+                S_T_times_initial_d_dv = S_T_rv_vv * initial_d_dv
+                final_d_dp = np.asarray(targeted_state) - sc.y[:3]
+
+                eqs = [S_T_times_initial_d_dv[0] - final_d_dp[0],
+                       S_T_times_initial_d_dv[1] - final_d_dp[1],
+                       S_T_times_initial_d_dv[2] - final_d_dp[2]]
+
+                reeeeee = linsolve(eqs, initial_d_dv1, initial_d_dv2, initial_d_dv3).args[0]
+                d_v = [reeeeee[0], reeeeee[1], reeeeee[2]]  # reference - actual
+
+                target_status = False
+                stable = False
+
+            elif step_count > len(t) - 1 and not target:
+                stable = False
+
+    elif not target:
+        while sc.successful() and stable and step_count < len(t):
+            sc.integrate(sc.t + step)
+            # Store the results to plot later
+            t[step_count] = sc.t
+            result[step_count][:] = sc.y
+            step_count += 1
+
+    return t, result, target_status, stable, d_v
 
 
 def main():

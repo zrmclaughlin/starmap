@@ -19,6 +19,7 @@ j2 = 1.082E-3
 mu = 3.986004415E14
 k_j2 = 3*j2*mu*r_e**2 / 2
 
+
 def get_jacobian(c_d, a_m_reference, a_m_chaser, r_0, rho_0, H):
     wy = -h_reference / r_reference**2
     wz = k_j2 * sin(2*i_reference) * sin(theta_reference) / (h_reference * r_reference**3)
