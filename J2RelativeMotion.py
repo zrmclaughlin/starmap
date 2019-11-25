@@ -28,6 +28,7 @@ def sedwick_eom_st(t, delta_state, A, n, c, l, q, phi):
 
     return d_delta_state_dt
 
+
 # ############################## SEDWICK J2 REOM ############################## #
 
 def sedwick_eom(t, delta_state, n, c, l, q, phi):
