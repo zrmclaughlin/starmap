@@ -21,7 +21,8 @@ import CombinedModelJacobian as jcb
 r_e = 6378136.3
 j2 = 1.082E-3
 mu = 3.986004415E14
-a_reference = 6378136.3 + 300000
+# a_reference = 6378136.3 + 300000
+a_reference = 6978137
 inc_reference = 30 * np.pi / 180
 
 
