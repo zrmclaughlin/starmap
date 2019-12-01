@@ -17,6 +17,8 @@ d_dx_dt_dt, d_dy_dt_dt, d_dz_dt_dt, d_x_dt, d_y_dt, d_z_dt = \
 r_e = 6378136.3
 j2 = 1.082E-3
 mu = 3.986004415E14
+a_reference = 6378136.3 + 300000
+inc_reference = 30 * np.pi / 180
 k_j2 = 3*j2*mu*r_e**2 / 2
 
 
@@ -35,7 +37,7 @@ def get_jacobian(c_d, a_m_reference, a_m_chaser, r_0, rho_0, H):
 
     dr_dt = -v_z  # d r / dt
     dv_z_dt = mu / r_reference**2 - h_reference**2 / r_reference**3 + k_j2*(1 - 3*sin(i_reference)**2 * sin(theta_reference)**2) / r_reference**4 + f_drag_reference*v_z*v_reference  # d v_z / dt
-    dh_reference_dt = -k_j2*sin(i_reference)**2*sin(2*theta_reference) / r_reference**3  # d h_reference / dt
+    dh_reference_dt = -k_j2*sin(i_reference)**2*sin(2*theta_reference) / r_reference**3 + f_drag_reference*h_reference*v_reference  # d h_reference / dt
     dtheta_reference_dt = h_reference / r_reference**2 + 2*k_j2*cos(i_reference)**2*sin(theta_reference)**2 / (h_reference * r_reference**3)  # d theta_reference / dt
     di_reference_dt = -k_j2*sin(2*theta_reference)*sin(2*i_reference) / (2 * h_reference * r_reference**3)  # d i_reference / dt
     dx_dt = p1 + y*wz - (z - r_reference)*wy  # d x / dt

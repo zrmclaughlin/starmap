@@ -43,7 +43,7 @@ def combined_model_eom(t, state, A, c_d, a_m_reference, a_m_chaser, r_0, rho_0, 
 
     dstate_dt[0][0] = -state[1]  # d r / dt
     dstate_dt[0][1] = mu / state[0]**2 - state[2]**2 / state[0]**3 + k_j2*(1 - 3*np.sin(state[4])**2 * np.sin(state[3])**2) / state[0]**4 + f_drag_reference*state[1]*v_reference  # d v_z / dt
-    dstate_dt[0][2] = -k_j2*np.sin(state[4])**2*np.sin(2*state[3]) / state[0]**3  # d h_reference / dt
+    dstate_dt[0][2] = -k_j2*np.sin(state[4])**2*np.sin(2*state[3]) / state[0]**3 + f_drag_reference*state[2]*v_reference # d h_reference / dt
     dstate_dt[0][3] = state[2] / state[0]**2 + 2*k_j2*np.cos(state[4])**2*np.sin(state[3])**2 / (state[2] * state[0]**3)  # d theta_reference / dt
     dstate_dt[0][4] = -k_j2*np.sin(2*state[3])*np.sin(2*state[4]) / (2 * state[2] * state[0]**3)  # d i_reference / dt
     dstate_dt[0][5] = state[8] + state[6]*wz - (state[7] - state[0])*wy  # d x / dt
@@ -65,29 +65,13 @@ def combined_model_eom(t, state, A, c_d, a_m_reference, a_m_chaser, r_0, rho_0, 
 
 def combined_targeter(time, delta_state_0, step, targeted_state, target, c_d, a_m_reference, a_m_chaser, r_0, rho_0, H):
 
-    # compute constants for reuse in targeting at time t=0
-    # some variables are assigned from the initial state vector for clarity's sake
-    wy_0 = -delta_state_0[2] / delta_state_0[0] ** 2
-    wz_0 = k_j2 * np.sin(2 * delta_state_0[4]) * np.sin(delta_state_0[3]) / (delta_state_0[2] * delta_state_0[0] ** 3)
-
-    r_reference_0 = delta_state_0[0]
-    v_z_0 = delta_state_0[1]
-    x_0 = delta_state_0[5]
-    y_0 = delta_state_0[6]
-    z_0 = delta_state_0[7]
-    p1_0 = delta_state_0[8]
-    p2_0 = delta_state_0[9]
-    p3_0 = delta_state_0[10]
-
-    v_0 = velocity_from_state(wy_0, wz_0, r_reference_0, v_z_0, x_0, y_0, z_0, p1_0, p2_0, p3_0)
-
     # Jacobian matrix
     A = CJJacobian.get_jacobian(c_d, a_m_reference, a_m_chaser, r_0, rho_0, H)
 
     sc = sp.integrate.ode(
         lambda t, x: combined_model_eom(t, x, A, c_d, a_m_reference, a_m_chaser, r_0, rho_0, H)).set_integrator('dopri5',
                                                                                                         atol=1e-5,
-                                                                                                        rtol=1e-5)
+                                                                                           rtol=1e-5)
     sc.set_initial_value(delta_state_0, time[0])
 
     t = np.zeros((len(time)+1))
