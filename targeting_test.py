@@ -292,8 +292,8 @@ def main():
     step = times[1] - times[0]
     nominal_position = [100, 1000, 20]
 
-    test_targeter(delta_state_0, times, step, nominal_position)
-    # test_stm(delta_state_0, times, step, nominal_position)
+    # test_targeter(delta_state_0, times, step, nominal_position)
+    test_stm(delta_state_0, times, step, nominal_position)
 
     return
 
