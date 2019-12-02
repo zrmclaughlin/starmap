@@ -10,8 +10,6 @@ import targeting_test
 r_e = 6378136.3
 j2 = 1.082E-3
 mu = 3.986004415E14
-a_reference = 6378136.3 + 300000
-inc_reference = 30 * np.pi / 180
 k_j2 = 3*j2*mu*r_e**2 / 2
 
 
@@ -32,11 +30,12 @@ def combined_model_eom(t, state, A, c_d, a_m_reference, a_m_chaser, r_0, rho_0, 
 
     r_chaser = np.linalg.norm([state[5], state[6], state[7] - state[0]])
     z_chaser = state[5]*np.cos(state[3])*np.sin(state[4]) - state[6]*np.cos(state[4]) - (state[7] - state[0])*np.sin(state[4])*np.sin(state[3])
+
     w_bar = -mu / r_chaser**3 - k_j2 / r_chaser**5 + 5*k_j2*z_chaser**2 / r_chaser**7
     zeta = 2*k_j2*z_chaser / r_chaser**5
 
     v_reference = np.linalg.norm([state[2]/state[0], 0, state[1]])
-    rho_reference = rho_0*np.exp(-(state[0] - r_0)/H)
+    rho_reference = rho_0*exp(-(state[0] - r_0)/H)
     f_drag_reference = - .5*c_d*a_m_reference*rho_reference
 
     dstate_dt = np.zeros((1, 11))
@@ -50,8 +49,9 @@ def combined_model_eom(t, state, A, c_d, a_m_reference, a_m_chaser, r_0, rho_0, 
     dstate_dt[0][6] = state[9] - state[5]*wz  # d y / dt
     dstate_dt[0][7] = state[10] - state[1] + state[5]*wy  # d z / dt
 
-    v_chaser = [dstate_dt[0][5] - state[6]*wz + (state[7] - state[0])*wy, dstate_dt[0][6] + state[5]*wz, dstate_dt[0][7] + state[1] - state[5]*wy]
-    rho_chaser = rho_0*np.exp(-(r_chaser - r_0)/H)
+    # v_chaser = [dstate_dt[0][5] - state[6]*wz + (state[7] - state[0])*wy, dstate_dt[0][6] + state[5]*wz, dstate_dt[0][7] + state[1] - state[5]*wy]
+    v_chaser = [state[8], state[9], state[10]]
+    rho_chaser = rho_0*exp(-(r_chaser - r_0)/H)
     f_drag_chaser = - .5*c_d*a_m_chaser*rho_chaser*np.linalg.norm(v_chaser)
 
     dstate_dt[0][8] = w_bar*state[5] - zeta*np.cos(state[3])*np.sin(state[4]) + state[9]*wz - state[10]*wy + f_drag_chaser*v_chaser[0]  # d p1 / dt
@@ -66,7 +66,7 @@ def combined_model_eom(t, state, A, c_d, a_m_reference, a_m_chaser, r_0, rho_0, 
 def combined_targeter(time, delta_state_0, step, targeted_state, target, c_d, a_m_reference, a_m_chaser, r_0, rho_0, H):
 
     # Jacobian matrix
-    A = CJJacobian.get_jacobian(c_d, a_m_reference, a_m_chaser, r_0, rho_0, H)
+    A = CJJacobian.get_jacobian_second_test(c_d, a_m_reference, a_m_chaser, r_0, rho_0, H)
 
     sc = sp.integrate.ode(
         lambda t, x: combined_model_eom(t, x, A, c_d, a_m_reference, a_m_chaser, r_0, rho_0, H)).set_integrator('dopri5',
