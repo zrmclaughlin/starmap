@@ -171,6 +171,7 @@ def main():
     p3 = z_0_dot + v_z - x_0*wy
 
     delta_state_0 = [r_reference, v_z, h_reference, theta_reference, i_reference, x_0, y_0, z_0, p1, p2, p3]
+    print(len(delta_state_0))
 
     times = np.linspace(0, 100, 100)
     step = times[1] - times[0]
