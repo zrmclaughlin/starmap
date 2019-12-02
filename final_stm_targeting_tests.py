@@ -2,7 +2,6 @@ import numpy as np
 import scipy as sp
 from scipy import integrate
 from sympy import *
-from mpmath import *
 import CombinedModelJacobian as CJJacobian
 import TargetingUtils
 import targeting_test
@@ -24,7 +23,7 @@ def combined_model_eom(t, state, A, c_d, a_m_reference, a_m_chaser, r_0, rho_0, 
 
     # <- r_reference, v_z, h_reference, theta_reference, i_reference, x_0, y_0, z_0, p1, p2, p3
     S_T = TargetingUtils.recompose(state, 11)
-    S_T_dt = np.matmul(A(state[0], state[1], state[2], state[3], state[4], state[5], state[6], state[7], state[8], state[9], state[10]), S_T)
+    S_T_dt = np.matmul(A(state[0], state[1], state[2], state[3], state[4], state[5], state[6], state[7], state[8], state[9], state[10]), S_T).tolist()
     wy = -state[2] / state[0]**2
     wz = k_j2 * np.sin(2*state[4]) * np.sin(state[3]) / (state[2] * state[0]**3)
 
@@ -36,27 +35,27 @@ def combined_model_eom(t, state, A, c_d, a_m_reference, a_m_chaser, r_0, rho_0, 
 
     v_reference = np.linalg.norm([state[2]/state[0], 0, state[1]])
     rho_reference = rho_0*exp(-(state[0] - r_0)/H)
-    f_drag_reference = - .5*c_d*a_m_reference*rho_reference
+    #f_drag_reference = - .5*c_d*a_m_reference*rho_reference
 
     dstate_dt = np.zeros((1, 11))
 
     dstate_dt[0][0] = -state[1]  # d r / dt
-    dstate_dt[0][1] = mu / state[0]**2 - state[2]**2 / state[0]**3 + k_j2*(1 - 3*np.sin(state[4])**2 * np.sin(state[3])**2) / state[0]**4 + f_drag_reference*state[1]*v_reference  # d v_z / dt
-    dstate_dt[0][2] = -k_j2*np.sin(state[4])**2*np.sin(2*state[3]) / state[0]**3 + f_drag_reference*state[2]*v_reference # d h_reference / dt
+    dstate_dt[0][1] = mu / state[0]**2 - state[2]**2 / state[0]**3 + k_j2*(1 - 3*np.sin(state[4])**2 * np.sin(state[3])**2) / state[0]**4 #+ f_drag_reference*state[1]*v_reference  # d v_z / dt
+    dstate_dt[0][2] = -k_j2*np.sin(state[4])**2*np.sin(2*state[3]) / state[0]**3 #+ f_drag_reference*state[2]*v_reference # d h_reference / dt
     dstate_dt[0][3] = state[2] / state[0]**2 + 2*k_j2*np.cos(state[4])**2*np.sin(state[3])**2 / (state[2] * state[0]**3)  # d theta_reference / dt
     dstate_dt[0][4] = -k_j2*np.sin(2*state[3])*np.sin(2*state[4]) / (2 * state[2] * state[0]**3)  # d i_reference / dt
     dstate_dt[0][5] = state[8] + state[6]*wz - (state[7] - state[0])*wy  # d x / dt
     dstate_dt[0][6] = state[9] - state[5]*wz  # d y / dt
     dstate_dt[0][7] = state[10] - state[1] + state[5]*wy  # d z / dt
 
-    # v_chaser = [dstate_dt[0][5] - state[6]*wz + (state[7] - state[0])*wy, dstate_dt[0][6] + state[5]*wz, dstate_dt[0][7] + state[1] - state[5]*wy]
-    v_chaser = [state[8], state[9], state[10]]
+    v_chaser = [dstate_dt[0][5] - state[6]*wz + (state[7] - state[0])*wy, dstate_dt[0][6] + state[5]*wz, dstate_dt[0][7] + state[1] - state[5]*wy]
+    # v_chaser = [state[8], state[9], state[10]]
     rho_chaser = rho_0*exp(-(r_chaser - r_0)/H)
-    f_drag_chaser = - .5*c_d*a_m_chaser*rho_chaser*np.linalg.norm(v_chaser)
+    #f_drag_chaser = - .5*c_d*a_m_chaser*rho_chaser*np.linalg.norm(v_chaser)
 
-    dstate_dt[0][8] = w_bar*state[5] - zeta*np.cos(state[3])*np.sin(state[4]) + state[9]*wz - state[10]*wy + f_drag_chaser*v_chaser[0]  # d p1 / dt
-    dstate_dt[0][9] = w_bar*state[6] + zeta*np.cos(state[4]) - state[8]*wz + f_drag_chaser*v_chaser[1]  # d p2 / dt
-    dstate_dt[0][10] = w_bar*(state[7] - state[0]) + zeta*np.sin(state[3])*np.sin(state[4]) + state[8]*wy + f_drag_chaser*v_chaser[2]  # d p3 / dt
+    dstate_dt[0][8] = w_bar*state[5] - zeta*np.cos(state[3])*np.sin(state[4]) + state[9]*wz - state[10]*wy #+ f_drag_chaser*v_chaser[0]  # d p1 / dt
+    dstate_dt[0][9] = w_bar*state[6] + zeta*np.cos(state[4]) - state[8]*wz #+ f_drag_chaser*v_chaser[1]  # d p2 / dt
+    dstate_dt[0][10] = w_bar*(state[7] - state[0]) + zeta*np.sin(state[3])*np.sin(state[4]) + state[8]*wy #+ f_drag_chaser*v_chaser[2]  # d p3 / dt
 
     dstate_dt = np.concatenate((dstate_dt, S_T_dt), axis=0).flatten()
 
@@ -66,12 +65,12 @@ def combined_model_eom(t, state, A, c_d, a_m_reference, a_m_chaser, r_0, rho_0, 
 def combined_targeter(time, delta_state_0, step, targeted_state, target, c_d, a_m_reference, a_m_chaser, r_0, rho_0, H):
 
     # Jacobian matrix
-    A = CJJacobian.get_jacobian_second_test(c_d, a_m_reference, a_m_chaser, r_0, rho_0, H)
+    A = CJJacobian.get_jacobian(c_d, a_m_reference, a_m_chaser, r_0, rho_0, H)
 
     sc = sp.integrate.ode(
         lambda t, x: combined_model_eom(t, x, A, c_d, a_m_reference, a_m_chaser, r_0, rho_0, H)).set_integrator('dopri5',
                                                                                                         atol=1e-5,
-                                                                                           rtol=1e-5)
+                                                                                                        rtol=1e-5)
     sc.set_initial_value(delta_state_0, time[0])
 
     t = np.zeros((len(time)+1))
@@ -128,12 +127,15 @@ def combined_targeter(time, delta_state_0, step, targeted_state, target, c_d, a_
 def test_stm(six_state, delta_state_0, times, step, nominal_position, c_d, a_m_reference, a_m_chaser, r_0, rho_0, H):
     print("Time: 100:", "CW Analytic STM", targeting_test.cw_stm(six_state, 100))
     # Combined motion test
+    print(delta_state_0)
     targeted_state = np.concatenate(([delta_state_0], np.eye(len(delta_state_0))), axis=0).flatten()
 
     cw_t, cw_results, target_status, stable, d_v = combined_targeter(times, targeted_state, step, nominal_position, False, c_d, a_m_reference, a_m_chaser, r_0, rho_0, H)
     last_stm = TargetingUtils.recompose(flat_state=cw_results[-1], state_length=11)
     final_truth = np.asarray(cw_results[-1][:11])
+    print(delta_state_0)
     final_guess = np.matmul(last_stm, np.asarray(delta_state_0))
+    print(final_truth)
 
     print("Time: ", cw_t[-1], ": Results CW:", final_truth)
     print("Time: ", cw_t[-1], ": Results STM CW:", final_guess)
@@ -171,7 +173,6 @@ def main():
     p3 = z_0_dot + v_z - x_0*wy
 
     delta_state_0 = [r_reference, v_z, h_reference, theta_reference, i_reference, x_0, y_0, z_0, p1, p2, p3]
-    print(len(delta_state_0))
 
     times = np.linspace(0, 100, 100)
     step = times[1] - times[0]
