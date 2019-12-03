@@ -133,16 +133,34 @@ def test_stm(six_state, delta_state_0, times, step, nominal_position, c_d, a_m_r
     # Combined motion test
     targeted_state = np.concatenate(([delta_state_0], np.eye(len(delta_state_0))), axis=0).flatten()
 
-    cw_t, cw_results, target_status, stable, d_v = combined_targeter(times, targeted_state, step, nominal_position, False, c_d, a_m_reference, a_m_chaser, r_0, rho_0, H)
+    cw_t, cw_results, target_status, stable, d_v = \
+        combined_targeter(times, targeted_state, step, nominal_position,
+                          False, c_d, a_m_reference, a_m_chaser, r_0, rho_0, H)
+
     last_differential_stm = TargetingUtils.recompose(flat_state=cw_results[-1], state_length=11)
 
-    # Now that I have the final differential STM, I need to propagate a state modified by a differential and find the corresponding
+    # Now that I have the final differential STM, I need to propagate a
+    # state modified by a differential and find the corresponding
     # final modified state! I can then compare this to the STM
-    differential = [1e-10, 1e-10, 1e-10, 1e-10, 1e-10, 1e-10, 1e-10, 1e-10, 1e-10, 1e-10, 1e-10]
+    differential = [1e2, 1e-10, 1e4, 1e-7, 1e-7, 1e-3, 1e-3, 1e-3, 1e-4, 1e-4, 1e-4]
     differential = [i*random.random()*10 for i in differential]
     print("Initial State Differential: ", differential)
 
+    # Now, propagate modified state through numeric system
+    cw_t_mod, cw_results_mod, target_status_mod, stable_mod, d_v_mod = \
+        combined_targeter(times, targeted_state, step, nominal_position,
+                          False, c_d, a_m_reference, a_m_chaser, r_0, rho_0, H)
 
+    xf = cw_results[-1][:11]
+    xf_with_differential = cw_results_mod[-1][:11]
+    difference_in_final_states = [xf_with_differential[i] - xf[i] for i in range(len(xf))]
+    print("Difference in final states using propagator: ", difference_in_final_states)
+
+    # Now, calculate differences
+    difference_from_dstm = np.matmul(last_differential_stm, differential)
+    print("Difference in final states using STM", difference_from_dstm)
+
+    print(np.linalg.norm(difference_in_final_states) - np.linalg.norm(difference_from_dstm))
 
     final_truth = np.asarray(cw_results[-1][:11])
     final_guess = np.matmul(last_differential_stm, np.asarray(delta_state_0))
@@ -183,6 +201,7 @@ def main():
     p1 = x_0_dot - y_0*wz + (z_0 - r_reference)*wy
     p2 = y_0_dot + x_0*wz
     p3 = z_0_dot + v_z - x_0*wy
+    print(p1, p2, p3)
 
     delta_state_0 = [r_reference, v_z, h_reference, theta_reference, i_reference, x_0, y_0, z_0, p1, p2, p3]
 
