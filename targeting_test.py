@@ -223,7 +223,7 @@ def test_targeter(delta_state_0, times, step, nominal_position):
     targeted_state = np.concatenate(([delta_state_cw], np.eye(len(delta_state_cw))), axis=0).flatten()
     final_state = [10000, 10000, 10000]
     counter = 0
-    while ((np.linalg.norm(np.asarray(final_state)) - np.linalg.norm(np.asarray(nominal_position))) > 10) and (counter < 10):
+    while (np.abs((np.linalg.norm(np.asarray(final_state)) - np.linalg.norm(np.asarray(nominal_position)))) > 10) and (counter < 10):
         cw_t, cw_results, target_status, stable, d_v = cw_propagator(times, targeted_state, step, nominal_position, True)
         print("Loop", counter, " | Final Position:", cw_results[-1][0], cw_results[-1][1], cw_results[-1][2])
         final_state = [cw_results[-1][0], cw_results[-1][1], cw_results[-1][2]]
@@ -245,7 +245,7 @@ def test_targeter(delta_state_0, times, step, nominal_position):
     targeted_state = np.concatenate(([delta_state_J2], np.eye(len(delta_state_J2))), axis=0).flatten()
     final_state = [10000, 10000, 10000]
     counter = 0
-    while ((np.linalg.norm(np.asarray(final_state)) - np.linalg.norm(np.asarray(nominal_position))) > 10) and (counter < 10):
+    while (np.abs((np.linalg.norm(np.asarray(final_state)) - np.linalg.norm(np.asarray(nominal_position)))) > 10) and (counter < 10):
         j2_t, j2_results, target_status, stable, d_v = j2_sedwick_propagator(times, targeted_state, step, nominal_position, True)
         print("Loop", counter, " | Final Position:", j2_results[-1][0], j2_results[-1][1], j2_results[-1][2])
         final_state = [j2_results[-1][0], j2_results[-1][1], j2_results[-1][2]]
@@ -292,8 +292,8 @@ def main():
     step = times[1] - times[0]
     nominal_position = [100, 1000, 20]
 
-    # test_targeter(delta_state_0, times, step, nominal_position)
-    test_stm(delta_state_0, times, step, nominal_position)
+    test_targeter(delta_state_0, times, step, nominal_position)
+    # test_stm(delta_state_0, times, step, nominal_position)
 
     return
 

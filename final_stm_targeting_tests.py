@@ -11,13 +11,6 @@ r_e = 6378136.3
 j2 = 1.082E-3
 mu = 3.986004415E14
 k_j2 = 3*j2*mu*r_e**2 / 2
-# print(k_j2/r_e**3)
-
-def velocity_from_state(wy, wz, r_reference, v_z, x, y, z, p1, p2, p3):
-    vx = p1 + y*wz - (z - r_reference)*wy
-    vy = p2 - x*wz
-    vz = p3 - v_z + x*wy
-    return [vx, vy, vz]
 
 
 def combined_model_eom(t, state, A, c_d, a_m_reference, a_m_chaser, r_0, rho_0, H):
@@ -48,7 +41,6 @@ def combined_model_eom(t, state, A, c_d, a_m_reference, a_m_chaser, r_0, rho_0, 
     dstate_dt[0][7] = state[10] - state[1] + state[5]*wy  # d z / dt
 
     v_chaser = [dstate_dt[0][5] - state[6]*wz + (state[7] - state[0])*wy, dstate_dt[0][6] + state[5]*wz, dstate_dt[0][7] + state[1] - state[5]*wy]
-    # v_chaser = [state[8], state[9], state[10]]
     rho_chaser = rho_0*exp(-(r_chaser - r_0)/H)
     f_drag_chaser = - .5*c_d*a_m_chaser*rho_chaser*np.linalg.norm(v_chaser)
 
@@ -95,18 +87,25 @@ def combined_targeter(time, delta_state_0, step, targeted_state, target, c_d, a_
 
             if step_count > len(t) - 1 and target:
                 S_T = TargetingUtils.recompose(sc.y, 11)
-                S_T_rv_vv = Matrix(S_T[np.arange(0, 11)[:, None], np.arange(3, 11)[None, :]])
-                initial_d_dv1, initial_d_dv2, initial_d_dv3 = symbols('initial_d_dv1 initial_d_dv2 initial_d_dv3',
+                # Slice matrix - we only care about the elements used to target position
+                S_T_xyz_p123 = Matrix(S_T[np.arange(5, 8)[:, None], np.arange(8, 11)[None, :]])
+
+                initial_d_dp1, initial_d_dp2, initial_d_dp3 = symbols('initial_d_dp1 initial_d_dp2 initial_d_dp3',
                                                                       real=True)
-                initial_d_dv = Matrix([initial_d_dv1, initial_d_dv2, initial_d_dv3])
-                S_T_times_initial_d_dv = S_T_rv_vv * initial_d_dv
-                final_d_dp = np.asarray(targeted_state) - sc.y[:3]
 
-                eqs = [S_T_times_initial_d_dv[0] - final_d_dp[0],
-                       S_T_times_initial_d_dv[1] - final_d_dp[1],
-                       S_T_times_initial_d_dv[2] - final_d_dp[2]]
+                initial_d_dv = Matrix([initial_d_dp1, initial_d_dp2, initial_d_dp3])
+                S_T_times_initial_d_dp = S_T_xyz_p123 * initial_d_dv
 
-                reeeeee = linsolve(eqs, initial_d_dv1, initial_d_dv2, initial_d_dv3).args[0]
+                # Delta relative position
+                final_d_dp = np.asarray(targeted_state) - sc.y[5:8]
+
+                eqs = [S_T_times_initial_d_dp[0] - final_d_dp[0],
+                       S_T_times_initial_d_dp[1] - final_d_dp[1],
+                       S_T_times_initial_d_dp[2] - final_d_dp[2]]
+
+                reeeeee = linsolve(eqs, initial_d_dp1, initial_d_dp2, initial_d_dp3).args[0]
+                print(eqs)
+                print(reeeeee)
                 d_v = [reeeeee[0], reeeeee[1], reeeeee[2]]  # reference - actual
 
                 target_status = False
@@ -181,6 +180,60 @@ def test_stm(six_state, delta_state_0, times, step, nominal_position, c_d, a_m_r
     # test passes as of 12/02/2019... omfg
 
 
+def test_targeter(six_state, nominal_six_position, delta_state_0, times, step, nominal_position, c_d, a_m_reference, a_m_chaser, r_0, rho_0, H):
+
+    # Test 1 - CW
+    print("++++++++ CW TARGETING TEST ++++++++")
+    targeted_state = np.concatenate(([six_state], np.eye(len(six_state))), axis=0).flatten()
+    final_state = [10000, 10000, 10000]
+    counter = 0
+    while (np.abs((np.linalg.norm(np.asarray(final_state)) - np.linalg.norm(np.asarray(nominal_six_position)))) > 10) and (counter < 10):
+        cw_t, cw_results, target_status, stable, d_v = targeting_test.cw_propagator(times, targeted_state, step, nominal_six_position, True)
+        print("Loop", counter, " | Final Position:", cw_results[-1][0], cw_results[-1][1], cw_results[-1][2])
+        final_state = [cw_results[-1][0], cw_results[-1][1], cw_results[-1][2]]
+        print("|->  Delta delta V: ", d_v)
+        six_state = [six_state[0], six_state[1], six_state[2],
+                         six_state[3] + d_v[0], six_state[4] + d_v[1], six_state[5] + d_v[2]]
+        print("|->  New Relative State: ", six_state)
+        targeted_state = np.concatenate(([six_state], np.eye(len(six_state))), axis=0).flatten()
+        counter = counter + 1
+
+    cw_t, cw_results, target_status, stable, d_v = targeting_test.cw_propagator(times, targeted_state, step, nominal_six_position, False)
+    print("Post-Targeting State: ", cw_results[-1][0], cw_results[-1][1], cw_results[-1][2])
+    print("Done. Total Loops: ", counter, "\n")
+
+    print("================================\n")
+
+    # test passed as of 11/19/2019
+
+    # Test 2 - Combinted model
+    print("++++++++ COMBINED TARGETING TEST ++++++++")
+    targeted_state = np.concatenate(([delta_state_0], np.eye(len(delta_state_0))), axis=0).flatten()
+    final_state = [10000, 10000, 10000]
+    counter = 0
+    while (np.abs((np.linalg.norm(np.asarray(final_state)) - np.linalg.norm(np.asarray(nominal_position)))) > 10) and (counter < 10):
+        combined_t, combined_results, target_status, stable, d_v = \
+            combined_targeter(times, targeted_state, step, nominal_position,
+                              True, c_d, a_m_reference, a_m_chaser, r_0, rho_0, H)
+        print("Loop", counter, " | Final Position:", combined_results[-1][5], combined_results[-1][6], combined_results[-1][7])
+        final_state = [combined_results[-1][5], combined_results[-1][6], combined_results[-1][7]]
+        print("|->  Delta delta V: ", d_v)
+        delta_state_0 = [delta_state_0[0], delta_state_0[1], delta_state_0[2], delta_state_0[3],
+                          delta_state_0[4], delta_state_0[5], delta_state_0[6], delta_state_0[7],
+                          delta_state_0[8] + d_v[0], delta_state_0[9] + d_v[1], delta_state_0[10] + d_v[2]]
+        print("|->  New Relative State: ", delta_state_0)
+        targeted_state = np.concatenate(([delta_state_0], np.eye(len(delta_state_0))), axis=0).flatten()
+        counter = counter + 1
+
+    combined_t, combined_results, target_status, stable, d_v = \
+        combined_targeter(times, targeted_state, step, nominal_position,
+                          False, c_d, a_m_reference, a_m_chaser, r_0, rho_0, H)
+    print("Post-Targeting State: ", combined_results[-1][5], combined_results[-1][6], combined_results[-1][7])
+    print("Done. Total Loops: ", counter, "\n")
+
+    print("================================\n")
+
+    # test passed as of 12/02/2019
 
 
 def main():
@@ -215,18 +268,17 @@ def main():
 
     delta_state_0 = [r_reference, v_z, h_reference, theta_reference, i_reference, x_0, y_0, z_0, p1, p2, p3]
 
-    times = np.linspace(0, 10, 10)
+    times = np.linspace(0, 100, 50)
     step = times[1] - times[0]
-    nominal_position = [100, 1000, 20]
+    nominal_position = [40000, 6000, 150]
+    nominal_cw_position = [-150, 40000, -6000]
 
     # The xr axis completes the right-handed frame -> transverse (y)
     # The yr axis points to the opposite direction of the orbital angular moment - > negative normal (-z)
     # The zr axis points to the center of the Earth -> negative radial (-x)
     cw_frame_state = [-z_0, x_0, -y_0, -z_0_dot, x_0_dot, -y_0_dot]
-
-    test_stm(cw_frame_state, delta_state_0, times, step, nominal_position, c_d, a_m_reference, a_m_chaser, r_0, rho_0, H)
-
-    return
+    # test_stm(cw_frame_state, delta_state_0, times, step, nominal_position, c_d, a_m_reference, a_m_chaser, r_0, rho_0, H)
+    test_targeter(cw_frame_state, nominal_cw_position, delta_state_0, times, step, nominal_position, c_d, a_m_reference, a_m_chaser, r_0, rho_0, H)
 
 
 if __name__ == "__main__":
