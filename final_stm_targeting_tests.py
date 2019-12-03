@@ -173,7 +173,7 @@ def test_stm(six_state, delta_state_0, times, step, nominal_position, c_d, a_m_r
     print("Ratio Between Differentials",
           np.linalg.norm(difference_in_final_states)/np.linalg.norm(difference_from_dstm))
 
-    print("Absoute Norm Difference Between Differentials",
+    print("Absolute Norm Difference Between Differentials",
           np.linalg.norm(difference_in_final_states) - np.linalg.norm(difference_from_dstm), "\n")
 
     print("================================\n")
