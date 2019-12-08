@@ -115,7 +115,6 @@ def from_cartesian(r, v, mu):
     # Set _nu
     nu = np.arccos((a * (1 - e ** 2) - np.linalg.norm(r)) / (e * np.linalg.norm(r)))
     if np.dot(r, v) < 0:  # if the dot product of r and v is below zero, subtract from 2*pi
-        print("hi")
         nu = 2 * np.pi - nu
 
     return OrbitalElements(a, e, i, w, o, nu, mu)

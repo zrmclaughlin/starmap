@@ -94,6 +94,8 @@ def run():
 
     v_rel = np.asarray([x_0_dot, y_0_dot, z_0_dot])
 
+    print("REFERENCE CONDITIONS:")
+
     reference_orbit = oe.OrbitalElements(a_reference, e_reference, i_reference, w_reference, raan_reference, theta_reference, mu)
     print("", "reference a", reference_orbit.get_a(), "\n",
           "reference e", reference_orbit.get_e(), "\n",
@@ -105,7 +107,7 @@ def run():
     r_reference, v_reference = reference_orbit.get_cartesian()
 
     print("", "Reference position", r_reference, "\n",
-          "Reference position", np.linalg.norm(r_reference), "\n",
+          "Reference position magnitude", np.linalg.norm(r_reference), "\n",
           "Reference velocity", v_reference)
 
     # compose dcm for transformation
@@ -117,13 +119,15 @@ def run():
 
     r_chaser_rel_frame = np.asarray([x_0, y_0, z_0 - np.linalg.norm(r_reference)])
     r_chaser = np.matmul(np.linalg.inv(to_relative_motion_frame_dcm), np.asarray([x_0, y_0, z_0 - np.linalg.norm(r_reference)]))
-    print("R chaser inertial frame: ", r_chaser)
 
-    p = v_rel - np.cross(w_rel_frame, r_chaser_rel_frame)
-    print("P from equations", p_eq)
-    print("P from frame calculations", p)
+    print("\n CHASER CONDITIONS:")
+
+    p = v_rel + np.cross(w_rel_frame, r_chaser_rel_frame)
+    # print("", "P from equations", p_eq, " | ", "P from frame calculations", p)
     v_chaser = np.matmul(np.linalg.inv(to_relative_motion_frame_dcm), p)
-    print("Inertial chaser velocity", v_chaser)
+    print("", "Chaser position: ", r_chaser, "\n",
+          "Chaser position magnitude", np.linalg.norm(r_chaser), "\n",
+          "Chaser velocity", v_chaser)
 
     r_reference_rel_frame = np.matmul(to_relative_motion_frame_dcm, r_reference)
     v_reference_rel_frame = np.matmul(to_relative_motion_frame_dcm, v_reference) + np.cross(w_rel_frame, r_reference_rel_frame)
@@ -140,8 +144,8 @@ def run():
     delta_state_0 = [np.linalg.norm(r_reference), v_z, h_reference, theta_reference, i_reference, x_0, y_0, z_0, p1, p2, p3]
 
     # calculate j2 and cw states
-    cw_frame_r = np.asarray([r_reference[0] - r_chaser[0], r_reference[1] - r_chaser[1], r_reference[2] - r_chaser[2]])
-    cw_frame_v = np.asarray([v_reference[0] - v_chaser[0], v_reference[1] - v_chaser[1], v_reference[2] - v_chaser[2]])
+    cw_frame_r = np.asarray([r_chaser[0] - r_reference[0], r_chaser[1] - r_reference[1], r_chaser[2] - r_reference[2]])
+    cw_frame_v = np.asarray([v_chaser[0] - v_reference[0], v_chaser[1] - v_reference[1], v_chaser[2] - v_reference[2]])
 
     to_rtn_mat = np.matmul(Transformation.t_3(reference_orbit.get_nu()),
                            np.matmul(Transformation.t_1(reference_orbit.get_i()),
@@ -151,30 +155,32 @@ def run():
     cw_frame_r = np.matmul(to_rtn_mat, cw_frame_r)
     w_cross_r_cw = np.cross(w, cw_frame_r)
     cw_frame_v = np.matmul(to_rtn_mat, cw_frame_v)
-    cw_frame_v = cw_frame_v + w_cross_r_cw
+    cw_frame_v = cw_frame_v - w_cross_r_cw
 
     cw_frame_state = [cw_frame_r[0], cw_frame_r[1], cw_frame_r[2], cw_frame_v[0], cw_frame_v[1], cw_frame_v[2]]
+    # print(cw_frame_state)
 
-    c_t, combined_data = get_rel_combined_data(delta_state_0, c_d, a_m_reference, a_m_chaser, r_0, rho_0, H)
+    # c_t, combined_data = get_rel_combined_data(delta_state_0, c_d, a_m_reference, a_m_chaser, r_0, rho_0, H)
     cw_t, cw_data = get_rel_cw_data(cw_frame_state)
     j2_t, j2_data = get_rel_j2_data(cw_frame_state)
-
-    plt.plot(c_t, combined_data[0], label="combined")
-    plt.plot(c_t, cw_data[0], label="cw")
-    plt.plot(c_t, j2_data[0], label="j2")
-    plt.legend(loc="best")
-    plt.show()
+    #
+    # plt.plot(c_t, combined_data[0], label="combined")
+    # plt.plot(c_t, cw_data[0], label="cw")
+    # plt.plot(c_t, j2_data[0], label="j2")
+    # plt.legend(loc="best")
+    # plt.show()
 
 
 def read():
     cw_data = pd.read_csv("cw_results_test.csv")
     j2_data = pd.read_csv("j2_results_test.csv")
-    combined_data = pd.read_csv("chen-jing_results_test.csv")
-    stk_data = pd.read_csv("Chaser_RIC.csv")
-    n = 4  # 1 for radial, 2 for in-track, 3 for cross-track
+    combined_data = pd.read_csv("chen-jing_results.csv")
+    stk_data = pd.read_csv("Target_RIC.csv")
+
+    n = 3  # 1 for radial, 2 for in-track, 3 for cross-track
     plt.plot(cw_data.iloc[:, 0].tolist(), cw_data.iloc[:, n].tolist(), label="cw")
     plt.plot(cw_data.iloc[:, 0].tolist(), j2_data.iloc[:, n].tolist(), label="j2")
-    plt.plot(cw_data.iloc[:, 0].tolist(), 1*np.asarray(combined_data.iloc[:, n].tolist()), label="combined")
+    plt.plot(cw_data.iloc[:, 0].tolist(), np.asarray(combined_data.iloc[:, n].tolist()), label="combined")
     plt.plot(cw_data.iloc[:, 0].tolist(), 1000*np.asarray(stk_data.iloc[:, n].tolist()[:502]), label="stk")  # "Radial (km)"
     plt.legend(loc="best")
     plt.show()
