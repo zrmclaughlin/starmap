@@ -1,5 +1,6 @@
 import numpy as np
 
+
 def recompose(flat_state, state_length):
     flat_state = flat_state.tolist()
     for i in range(state_length):

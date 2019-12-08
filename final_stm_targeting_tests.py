@@ -277,7 +277,7 @@ def main():
     # The yr axis points to the opposite direction of the orbital angular moment - > negative normal (-z)
     # The zr axis points to the center of the Earth -> negative radial (-x)
     cw_frame_state = [-z_0, x_0, -y_0, -z_0_dot, x_0_dot, -y_0_dot]
-    # test_stm(cw_frame_state, delta_state_0, times, step, nominal_position, c_d, a_m_reference, a_m_chaser, r_0, rho_0, H)
+    test_stm(cw_frame_state, delta_state_0, times, step, nominal_position, c_d, a_m_reference, a_m_chaser, r_0, rho_0, H)
     test_targeter(cw_frame_state, nominal_cw_position, delta_state_0, times, step, nominal_position, c_d, a_m_reference, a_m_chaser, r_0, rho_0, H)
 
 

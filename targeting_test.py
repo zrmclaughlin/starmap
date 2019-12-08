@@ -20,10 +20,11 @@ import CombinedModelJacobian as jcb
 
 r_e = 6378136.3
 j2 = 1.082E-3
-mu = 3.986004415E14
-# a_reference = 6378136.3 + 300000
+# mu = 3.986004415E14
+mu = 3.98600436E14
+k_j2 = 3*j2*mu*r_e**2 / 2
 a_reference = 6978137
-inc_reference = 30 * np.pi / 180
+inc_reference = 97.8 * np.pi / 180
 
 
 def sedwick_eom(t, delta_state, n, c, l, q, phi, A):
@@ -286,13 +287,59 @@ def test_stm(delta_state_0, times, step, nominal_position):
     # test passes as of 11/18/2019
 
 
+def visualize_targeting(delta_state_0, times, step, nominal_position):
+    print("++++++++ J2 TARGETING VISUALIZATION ++++++++")
+    targeted_state = np.concatenate(([delta_state_0], np.eye(len(delta_state_0))), axis=0).flatten()
+    final_state = [10000, 10000, 10000]
+    counter = 0
+    first_results = []
+    first_t = []
+    while (np.abs((np.linalg.norm(np.asarray(final_state)) - np.linalg.norm(np.asarray(nominal_position)))) > 10) and (counter < 10):
+        j2_t, j2_results, target_status, stable, d_v = j2_sedwick_propagator(times, targeted_state, step, nominal_position, True)
+        if counter == 0:
+            first_results = j2_results
+            first_t = j2_t
+        print("Loop", counter, " | Final Position:", j2_results[-1][0], j2_results[-1][1], j2_results[-1][2])
+        final_state = [j2_results[-1][0], j2_results[-1][1], j2_results[-1][2]]
+        print("|->  Delta delta V: ", d_v)
+        delta_state_0 = [delta_state_0[0], delta_state_0[1], delta_state_0[2],
+                         delta_state_0[3] + d_v[0], delta_state_0[4] + d_v[1], delta_state_0[5] + d_v[2]]
+        print("|->  New Relative State: ", delta_state_0)
+        targeted_state = np.concatenate(([delta_state_0], np.eye(len(delta_state_0))), axis=0).flatten()
+        counter = counter + 1
+
+    j2_t, j2_results, target_status, stable, d_v = j2_sedwick_propagator(times, targeted_state, step, nominal_position, False)
+    print("Post-Targeting State: ", j2_results[-1][0], j2_results[-1][1], j2_results[-1][2])
+    print("Done. Total Loops: ", counter)
+
+    ax = plt.axes(projection='3d')
+    ax.set_xlabel("Radial (m)")
+    ax.set_ylabel("In-Track (m)")
+    ax.set_zlabel("Cross-Track (m)")
+    ax.set_title("Relative Motion for " + str(j2_t[-1]) + " seconds")
+
+    print(j2_results[:, 0])
+    print(j2_results[0, :])
+
+    # Data for a three-dimensional line
+    ax.plot3D([i[0] for i in j2_results], [i[1] for i in j2_results], [i[2] for i in j2_results], label="Adjusted Trajectory")
+    ax.plot3D([i[0] for i in first_results], [i[1] for i in first_results], [i[2] for i in first_results], label="Original Trajectory")
+    ax.scatter([nominal_position[0]], [nominal_position[1]], [nominal_position[2]], label="Targeted State", s=10, color='C2')
+
+    ax.legend(loc="best")
+
+    plt.show()
+
+
+
 def main():
     delta_state_0 = [10, 10, 10, 1, 2, 3]
-    times = np.linspace(0, 100, 100)
+    times = np.linspace(0, 1000, 1000)
     step = times[1] - times[0]
-    nominal_position = [100, 1000, 20]
+    nominal_position = [1000, 1000, 200]
 
-    test_targeter(delta_state_0, times, step, nominal_position)
+    # test_targeter(delta_state_0, times, step, nominal_position)
+    visualize_targeting(delta_state_0, times, step, nominal_position)
     # test_stm(delta_state_0, times, step, nominal_position)
 
     return
